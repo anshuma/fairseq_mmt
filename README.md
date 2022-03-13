@@ -1,4 +1,4 @@
-multimodal machine translation(MMT) 
+This code repository is for the accepted ACL2022 paper "On Vision Features in Multimodal Machine Translation". We provide the details and scripts for the proposed probing tasks. We hope the code could help those who want to research on the multimodal machine translation task.
 # Our dependency
 
 * PyTorch version == 1.9.1
