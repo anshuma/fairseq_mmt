@@ -133,8 +133,8 @@ CUDA_VISIBLE_DEVICES=0,1 fairseq-train data-bin/$data_dir
 *you can run train_mmt.sh instead of scripts above.*
 #### 3. Test(mask1 as an example)
 ```bash
-#sh translation_mmt.sh $1 $2
-sh translation_mmt.sh mask1 vit_base_patch16_384  # origin text is mask0
+#sh translate_mmt.sh $1 $2
+sh translate_mmt.sh mask1 vit_base_patch16_384  # origin text is mask0
 ```
 script parameters:
 - ```$1```: choices=['mask1', 'mask2', 'mask3', 'mask4', 'maskc', 'maskp', 'mask0']
