@@ -70,7 +70,7 @@ if __name__ == "__main__":
         for i in tqdm(filenames):
             i = os.path.join(flickr30k_path, dic[dataset]+'-images', i)
             
-            img = Image.open(i)
+            img = Image.open(i).convert("RGB")
             # mean-std normalize the input image (batch-size: 1)
             input = transform(img).unsqueeze(0).to('cuda:0') # transform and add batch dimension
             # outputs return 6 decoder layers' features
