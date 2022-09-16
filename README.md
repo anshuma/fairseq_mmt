@@ -86,7 +86,7 @@ sh preprocess_mmt.sh
 ```bash
 src='en'
 tgt='de'
-mask=mask1  # mask1, mask2, mask3, maskc(color), maskp(character)
+mask=mask1  # mask1, mask2, mask3, mask4, maskc(color), maskp(character)
 TEXT=data/multi30k-en-$tgt.$mask
 
 fairseq-preprocess --source-lang $src --target-lang $tgt \
