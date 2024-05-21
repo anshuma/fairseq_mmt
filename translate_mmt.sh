@@ -58,16 +58,16 @@ elif [ $task == 'multi30k-en2fr' ]; then
 fi
 
 if [ $image_feat == "vit_tiny_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=192
 elif [ $image_feat == "vit_small_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=384
 elif [ $image_feat == "vit_base_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=768
 elif [ $image_feat == "vit_large_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=1024
 fi
 

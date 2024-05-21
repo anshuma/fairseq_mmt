@@ -3,7 +3,7 @@ set -e
 
 device=0,1
 task=multi30k-en2de
-image_feat=vit_tiny_patch16_384
+image_feat=vit_base_patch16_384
 mask_data=mask0
 tag=$image_feat/$image_feat-$mask_data
 save_dir=checkpoints/$task/$tag
@@ -66,16 +66,16 @@ SA_attention_dropout=0.1
 SA_image_dropout=0.1
 
 if [ $image_feat == "vit_tiny_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=192
 elif [ $image_feat == "vit_small_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=384
 elif [ $image_feat == "vit_base_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=768
 elif [ $image_feat == "vit_large_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=1024
 fi
 
@@ -85,7 +85,8 @@ fi
 
 cp ${BASH_SOURCE[0]} $save_dir/train.sh
 
-gpu_num=`echo "$device" | awk '{split($0,arr,",");print length(arr)}'`
+#gpu_num=`echo "$device" | awk '{split($0,arr,",");print length(arr)}'`
+gpu_num=1
 
 cmd="fairseq-train data-bin/$data_dir
   --save-dir $save_dir

@@ -80,6 +80,7 @@ if __name__ == "__main__":
             input = transform(img).unsqueeze(0).to('cuda:0') # transform and add batch dimension
             
             out = model.forward_features(input)
+            #print(out.shape)
             
             tmp.append(out.detach().to('cuda:1'))
             if len(tmp) == 2000:

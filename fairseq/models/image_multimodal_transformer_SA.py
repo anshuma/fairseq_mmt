@@ -452,6 +452,62 @@ class TransformerEncoder(FairseqEncoder):
             x = self.quant_noise(x)
         return x, embed
 
+    def project_tensor(self, img, J, K, pad_value=0):
+        # Ensure the tensor has shape (N, 1)
+        if img.shape[1] != 1:
+            raise ValueError("Input tensor must have shape (N, 1)")
+
+        N = img.shape[0]
+        target_size = J * K
+
+        if N < target_size:
+            # Pad the tensor
+            padding = torch.full((target_size - N, 1), pad_value, dtype=tensor.dtype)
+            img = torch.cat([img, padding], dim=0)
+        elif N > target_size:
+            # Truncate the tensor
+            img = img[:target_size]
+
+        # Reshape the tensor to shape (J, K)
+        reshaped_tensor = img.view(J, K)
+        return reshaped_tensor
+
+    import torch
+
+    def project_tensor_final(self,tensor, J, K, pad_value=0):
+        print('inside project_tensor_final')
+        print('tensor.shape',tensor.shape)
+        print('J,K',J,K)
+        A, M, N = tensor.shape
+        total_elements = M * N
+        target_elements = J * K
+
+        # Reshape each (M, N) slice within the batch
+        reshaped_slices = []
+        device = tensor.device
+        for i in range(A):
+            # Flatten the (M, N) slice
+            flattened_slice = tensor[i].view(-1)
+
+            if total_elements < target_elements:
+                # Pad the slice
+                padding = torch.full((target_elements - total_elements,), pad_value, dtype=tensor.dtype, device=device)
+                flattened_slice = torch.cat([flattened_slice, padding], dim=0)
+            elif total_elements > target_elements:
+                # Truncate the slice
+                flattened_slice = flattened_slice[:target_elements]
+
+            # Reshape the slice to (J, K)
+            reshaped_slice = flattened_slice.view(J, K)
+            print('reshaped_slice shape:',reshaped_slice.shape)
+            reshaped_slices.append(reshaped_slice)
+
+        # Stack the reshaped slices back into a single tensor
+        reshaped_tensor = torch.stack(reshaped_slices)
+        print('reshaped_tensor shape:',reshaped_tensor.shape)
+
+        return reshaped_tensor
+
     def forward(
         self,
         src_tokens,
@@ -486,10 +542,12 @@ class TransformerEncoder(FairseqEncoder):
         """
         # import os
         # torch.save(src_tokens.cpu(), os.path.join(self.args.save_dir, 'visualization', str(self.recoder.n)+'tokens.pth'), _use_new_zipfile_serialization=False)
-
+        print('src_tokens shape', src_tokens.shape)
         x, encoder_embedding = self.forward_embedding(src_tokens, token_embeddings)
-
+        print('shape of x', x.shape)
+        #print('encoder_embedding shape', encoder_embedding)
         # B x T x C -> T x B x C
+        B,T,C = x.shape
         x = x.transpose(0, 1)
 
         # compute padding mask
@@ -498,8 +556,13 @@ class TransformerEncoder(FairseqEncoder):
         encoder_states = [] if return_all_hiddens else None
         xs = []
         idx = 0
+        print('len of imgs_list',len(imgs_list))
         if not self.is_fusion_top:
             for img, img_mask in zip(imgs_list, img_masks_list):
+                print('img shape',img.shape)
+                #img = self.project_tensor_finale(img.unsqueeze(-1),T,C)
+                img = img.unsqueeze(1)
+                print('img shape',img.shape)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
@@ -516,6 +579,10 @@ class TransformerEncoder(FairseqEncoder):
 
         if self.is_fusion_top:
             for img, img_mask in zip(imgs_list, img_masks_list):
+                print('img shape',img.shape)
+                #img = self.project_tensor_final(img.unsqueeze(-1),T,C)
+                img = img.unsqueeze(1)
+                print('img shape',img.shape)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
