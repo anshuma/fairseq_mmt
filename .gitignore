@@ -147,3 +147,5 @@ data/masking/en2de/*.match
 
 # dir
 flickr30k_entities
+flickr30k/
+multi30k-dataset/

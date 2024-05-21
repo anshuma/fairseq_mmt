@@ -1,7 +1,7 @@
 src='en'
 tgt='fr'
 
-TEXT=data/multi30k-en-$tgt
+TEXT=small_dataset/data/multi30k-en-$tgt
 
 fairseq-preprocess --source-lang $src --target-lang $tgt \
   --trainpref $TEXT/train \
