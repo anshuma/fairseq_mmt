@@ -100,7 +100,7 @@ def preprocess_example(image_path, text):
     max_length = inputs["input_ids"].shape[-1] + visual_embeds.shape[-2]
     #print('max_length',max_length)
     labels = tokenizer(text, return_tensors="pt", padding="max_length", max_length=max_length)[
-        "input_ids"].float()
+        "input_ids"]
     #print('labels.shape',labels.shape)
     sentence_image_labels = torch.tensor(1).unsqueeze(0)
     inputs.update({
@@ -148,25 +148,35 @@ def load_and_preprocess_data(split):
 count = 1
 def generate_and_save_predictions(encodings, split):
     tmp = []
+    tmp1 = []
     global count
     model.eval()
     predictions = []
     for inputs in encodings:
         with torch.no_grad():
-            outputs = model(**inputs)
+            outputs = model(**inputs, output_hidden_states=True)
             prediction_logits = outputs.prediction_logits
             predicted_tokens = torch.argmax(prediction_logits, dim=-1)
             predicted_sentence = tokenizer.decode(predicted_tokens[0], skip_special_tokens=True)
             predictions.append(predicted_sentence)
+            #last_layer_output = outputs.hidden_states[-1]
+            #last_layer_output_prediction = prediction_logits
             last_layer_output = outputs.hidden_states[-1]
+            print('last_layer_output', last_layer_output.shape)
+            #print('last_layer_output_prediction', last_layer_output_prediction.shape)
             #torch.save(last_layer_output, os.path.join(output_dir, f'final_{split}_{i}.pth'))
             tmp.append(last_layer_output.detach())
+            #tmp1.append(last_layer_output_prediction.detach())
             if len(tmp) == 2000:
                 res = torch.cat(tmp)
                 print(res.shape)
+                #res1 = torch.cat(tmp1)
+                #print(res1.shape)
                 torch.save(res, os.path.join(output_dir, str(count) + split + '.pth'))
+                #torch.save(res1, os.path.join(output_dir, str(count) + split + '_predict'+'.pth'))
                 count += 1
                 tmp = []
+                #tmp1 = []
 
     with open(os.path.join(output_dir, f"{split}_predictions.txt"), 'w') as f:
         for prediction in predictions:
@@ -174,32 +184,42 @@ def generate_and_save_predictions(encodings, split):
 
     print('tmp', tmp)
     res = torch.cat(tmp)
+    #res1 = torch.cat(tmp1)
     if count > 1:
         torch.save(res, os.path.join(output_dir, 'final' + split + '.pth'))
+        #torch.save(res1, os.path.join(output_dir, 'final' + split + '_predict'+'.pth'))
     else:
         print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
         torch.save(res, os.path.join(output_dir, split + '.pth'))
+        #torch.save(res1, os.path.join(output_dir, split + '_predict' + '.pth'))
     del tmp
-
+    #del tmp1
     _tmp = []
+    #_tmp1 = []
     if count > 1:
         for i in range(1, count):
             _tmp.append(torch.load(os.path.join(output_dir, str(i) + split + '.pth')))
+            #_tmp1.append(torch.load(os.path.join(output_dir, str(i) + split + '_predict'+'.pth')))
         _tmp.append(torch.load(os.path.join(output_dir, 'final' + split + '.pth')))
+        #_tmp1.append(torch.load(os.path.join(output_dir, 'final' + split + '_predict' + '.pth')))
         res = torch.cat(_tmp).cpu()
+        #res1 = torch.cat(_tmp1).cpu()
         print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
         torch.save(res, os.path.join(output_dir, split + '.pth'))
+        #torch.save(res1, os.path.join(output_dir, split + '_predict'+'.pth'))
 
         # delete
         for i in range(1, count):
             os.remove(os.path.join(output_dir, str(i) + split + '.pth'))
+            #os.remove(os.path.join(output_dir, str(i) + split + '_predict'+'.pth'))
         os.remove(os.path.join(output_dir, 'final' + split + '.pth'))
+        #os.remove(os.path.join(output_dir, 'final' + split + '_predict'+'.pth'))
 
 # Process and generate outputs for train, validation, and test sets
-train_encodings = load_and_preprocess_data('train')
-#valid_encodings = load_and_preprocess_data('valid')
-#test_encodings = load_and_preprocess_data('test')
+#train_encodings = load_and_preprocess_data('small_train')
+valid_encodings = load_and_preprocess_data('valid')
+#test_encodings = load_and_preprocess_data('test.2016')
 
-generate_and_save_predictions(train_encodings, 'train')
-#generate_and_save_predictions(valid_encodings, 'valid')
-#generate_and_save_predictions(test_encodings, 'test')
+#generate_and_save_predictions(train_encodings, 'small_train')
+generate_and_save_predictions(valid_encodings, 'valid')
+#generate_and_save_predictions(test_encodings, 'test.2016')
