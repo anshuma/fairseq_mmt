@@ -32,9 +32,9 @@ frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frc
 image_preprocess = Preprocess(frcnn_cfg)
 
 # Define paths
-data_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/small_dataset/data/multi30k-en-de'
-image_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/small_dataset/flickr30k/flickr30k-images/'
-image_idx_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/small_dataset/flickr30k/'
+data_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/data/multi30k-en-de'
+image_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/flickr30k/flickr30k-images/'
+image_idx_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/flickr30k/'
 count = 0
 # Load indices and captions
 def load_data(split):
@@ -179,8 +179,8 @@ trainer = Trainer(
 if train_dataset is not None:
     trainer.train()
 
-trainer.save_model("./finetuned_model_VisualBERT")
-tokenizer.save_pretrained("./finetuned_model_VisualBERT")
+trainer.save_model("./finetuned_model_VisualBERT_large")
+tokenizer.save_pretrained("./finetuned_model_VisualBERT_large")
 
 # Evaluate the model
 if test_dataset is not None:

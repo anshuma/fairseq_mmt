@@ -10,7 +10,7 @@ Original file is located at
 # %pip install-r requirements.txt
 
 import torch
-from transformers import VisualBertForQuestionAnswering, BertTokenizer, Trainer, TrainingArguments,VisualBertForPreTraining
+from transformers import VisualBertForQuestionAnswering, BertTokenizer, Trainer, TrainingArguments,VisualBertForPreTraining,VisualBertConfig
 from transformers import AutoImageProcessor, DeiTModel
 from datasets import Dataset, Features, Value, Array3D
 from PIL import Image
@@ -85,10 +85,11 @@ def get_visual_embeddings1(image):
 
 # Initialize tokenizer
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-model = VisualBertForPreTraining.from_pretrained('./finetuned_model_VisualBERT')
-# Preprocess function
 
+# Preprocess function
+max_length = 0
 def preprocess_example(image_path, text):
+    global max_length
     image_path = os.path.join(image_path)
     #image = Image.open(image_path).convert('RGB')
     #visual_embeds = get_visual_embeddings(image).unsqueeze(0)
@@ -144,9 +145,12 @@ def load_and_preprocess_data(split):
 #         return None
 
 # Generat
-
+#configuration = VisualBertConfig.from_pretrained('visualbert-vqa-coco-pre')
+#configuration.hidden_size=max_length
+model = VisualBertForPreTraining.from_pretrained('./finetuned_model_VisualBERT_small')
 count = 1
 def generate_and_save_predictions(encodings, split):
+    global max_length
     tmp = []
     tmp1 = []
     global count
@@ -216,10 +220,10 @@ def generate_and_save_predictions(encodings, split):
         #os.remove(os.path.join(output_dir, 'final' + split + '_predict'+'.pth'))
 
 # Process and generate outputs for train, validation, and test sets
-#train_encodings = load_and_preprocess_data('small_train')
-valid_encodings = load_and_preprocess_data('valid')
+train_encodings = load_and_preprocess_data('small_train')
+#valid_encodings = load_and_preprocess_data('valid')
 #test_encodings = load_and_preprocess_data('test.2016')
 
-#generate_and_save_predictions(train_encodings, 'small_train')
-generate_and_save_predictions(valid_encodings, 'valid')
+generate_and_save_predictions(train_encodings, 'small_train')
+#generate_and_save_predictions(valid_encodings, 'valid')
 #generate_and_save_predictions(test_encodings, 'test.2016')
