@@ -1,5 +1,5 @@
 src='en'
-tgt='fr'
+tgt='de'
 
 TEXT=small_dataset/data/multi30k-en-$tgt
 

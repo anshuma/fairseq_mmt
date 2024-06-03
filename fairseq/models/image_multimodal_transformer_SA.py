@@ -498,6 +498,7 @@ class TransformerEncoder(FairseqEncoder):
         encoder_states = [] if return_all_hiddens else None
         xs = []
         idx = 0
+        print('len of imgs_list', len(imgs_list))
         if not self.is_fusion_top:
             for img, img_mask in zip(imgs_list, img_masks_list):
                 img = img.transpose(0, 1)

@@ -1,9 +1,10 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
+model_checkpoint = "Helsinki-NLP/opus-mt-en-de"
 # Load the tokenizer and model
-tokenizer = AutoTokenizer.from_pretrained("facebook/hf-seamless-m4t-large")
-model = AutoModelForSeq2SeqLM.from_pretrained("facebook/hf-seamless-m4t-large")
+tokenizer = AutoTokenizer.from_pretrained(model_checkpoint,return_tensors="pt")
+model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
 
 # Ensure the model is in evaluation mode
 model.eval()
@@ -15,15 +16,10 @@ model.to(device)
 
 def translate(text, src_lang, tgt_lang):
     # Prepare the input text
-    input_ids = tokenizer.encode(text, return_tensors="pt", add_special_tokens=True).to(device)
-
-    # Generate translation
-    with torch.no_grad():
-        outputs = model.generate(input_ids, max_length=512, num_beams=5, early_stopping=True, tgt_lang=tgt_lang)
-
-    # Decode the generated text
+    input_ids = tokenizer.encode(text, return_tensors="pt")
+    outputs = model.generate(input_ids, max_length=512)
     translated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
+    print(translated_text)
     return translated_text
 
 

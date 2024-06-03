@@ -26,8 +26,9 @@ class _FP16OptimizerMixin(object):
         )
 
     @classmethod
-    def build_fp32_params(cls, args, params, flatten=True):
+    def build_fp32_params(cls, args, params, flatten=False):
         # create FP32 copy of parameters and grads
+        flatten = False
         if flatten:
             is_pipeline_parallel = getattr(
                 args, "pipeline_model_parallel", False
@@ -242,6 +243,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.FairseqOptimizer):
             data_parallel_size = int(
                 args.distributed_world_size / args.model_parallel_size
             )
+            data_parallel_size = 1
             scale_window = int(2 ** 14 / data_parallel_size / args.update_freq[0])
         else:
             scale_window = args.fp16_scale_window
@@ -268,6 +270,7 @@ class FP16Optimizer(_FP16OptimizerMixin, optim.FairseqOptimizer):
         flatten = not getattr(args, "fp16_no_flatten_grads", False)
         if getattr(args, "bf16", False):
             flatten = False  # mixed precision is faster on TPUs without flat grads
+        flatten = False
         fp32_params = cls.build_fp32_params(args, params, flatten=flatten)
         if flatten:
             fp32_optimizer = optim.build_optimizer(args, [fp32_params])
