@@ -50,13 +50,15 @@ def get_visual_embedding_blip(image_path):
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
 
-
+count1 = 0
 def load_and_preprocess_data(split):
     data = load_data(split)
     global max_length
     tmp = []
     tmp1 = []
-    global count
+    global count1
+    count = 1
+    global device
     model.eval()
     predictions = []
     if data is not None:
@@ -93,7 +95,8 @@ def load_and_preprocess_data(split):
                 outputs = model(**inputs, output_hidden_states=True)
                 last_layer_output = outputs.hidden_states[-1]
                 print('last_layer_output', last_layer_output.shape, flush=True)
-                tmp.append(last_layer_output.detach().to('device'))
+                #tmp.append(last_layer_output.detach().to('device'))
+                tmp.append(last_layer_output.detach().to(device))
                 if len(tmp) == 2000:
                     res = torch.cat(tmp)
                     print(res.shape, flush=True)
@@ -127,5 +130,5 @@ def load_and_preprocess_data(split):
 
 
 # Process and generate outputs for train, validation, and test sets
-train_outputs = load_and_preprocess_data('train')
+train_outputs = load_and_preprocess_data('test.2016')
 #generate_and_save_predictions(train_outputs, 'train')
