@@ -22,6 +22,7 @@ import os
 from processing_image import Preprocess
 from modeling_frcnn import GeneralizedRCNN
 from utils import Config
+import sys
 
 
 # load models and model components
@@ -32,9 +33,9 @@ frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frc
 image_preprocess = Preprocess(frcnn_cfg)
 
 # Define paths
-data_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/data/multi30k-en-de'
-image_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/flickr30k/flickr30k-images/'
-image_idx_dir = '/Users/anshumashuk/git/MTech_IITHyd/IITHyd_Capstone/final_Capstone_experiments/fairseq_mmt/flickr30k/'
+data_dir = '../data/multi30k-en-de'
+image_dir = '../flickr30k/flickr30k-images/'
+image_idx_dir = '../flickr30k/'
 count = 0
 # Load indices and captions
 def load_data(split):
@@ -185,3 +186,4 @@ tokenizer.save_pretrained("./finetuned_model_VisualBERT_large")
 # Evaluate the model
 if test_dataset is not None:
     trainer.evaluate(eval_dataset=test_dataset)
+

@@ -10,7 +10,7 @@ gpu=7
 model_root_dir=checkpoints
 
 # set task
-task=multi30k-en2fr
+task=multi30k-en2de
 mask_data=$_mask
 image_feat=$_image_feat
 
@@ -19,8 +19,8 @@ random_image_translation=0 #1
 length_penalty=0.8
 
 # set tag
-model_dir_tag=$image_feat/$image_feat-$mask_data
-#model_dir_tag=checkpoints/multi30k-en2de/blip_image_captioning_large/
+#model_dir_tag=$image_feat/$image_feat-$mask_data
+#model_dir_tag = checkpoints/multi30k-en2de/blip_image_captioning_large/
 if [ $task == "multi30k-en2de" ]; then
 	tgt_lang=de
 	if [ $mask_data == "mask0" ]; then
@@ -71,15 +71,23 @@ elif [ $image_feat == "vit_large_patch16_384" ]; then
 	image_feat_dim=1024
 fi
 
+#image_feat_path=data/blip_image_captioning_large/
+#image_feat_dim=1024
+#image_feat_path=small_dataset/data/VisualBert_small/
+#image_feat_dim=548
+image_feat_path=small_dataset/data/VisualBert_small_blip/
+image_feat_dim=768
+
 # data set
 ensemble=10
 batch_size=128
 beam=5
 src_lang=en
 
-model_dir=$model_root_dir/$task/$model_dir_tag
+#model_dir=$model_root_dir/$task/$model_dir_tag
 
 #model_dir=checkpoints/multi30k-en2de/blip_image_captioning_large/
+model_dir=checkpoints/multi30k-en2de/VisualBert_small_blip/
 checkpoint=checkpoint_best.pt
 
 if [ -n "$ensemble" ]; then
@@ -90,10 +98,10 @@ if [ -n "$ensemble" ]; then
 fi
 
 output=$model_dir/translation_$who.log
-checkpoint=checkpoint39.pt
+
 export CUDA_VISIBLE_DEVICES=$gpu
 
-cmd="fairseq-generate data-bin/$data_dir 
+cmd="fairseq-generate small_dataset/data-bin/$data_dir 
   -s $src_lang -t $tgt_lang 
   --path $model_dir/$checkpoint 
   --gen-subset $who 
@@ -126,6 +134,7 @@ elif [ $task == "multi30k-en2fr" ] && [ $who == 'test1' ]; then
 elif [ $task == "multi30k-en2fr" ] && [ $who == 'test2' ]; then
 	ref=data/multi30k/test.coco.fr
 fi	
+
 hypo=$model_dir/hypo.sorted
 python3 meteor.py $hypo $ref > $model_dir/meteor_$who.log
 cat $model_dir/meteor_$who.log

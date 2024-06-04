@@ -500,7 +500,19 @@ class TransformerEncoder(FairseqEncoder):
         idx = 0
         print('len of imgs_list', len(imgs_list))
         if not self.is_fusion_top:
+            print('not fusion top')
             for img, img_mask in zip(imgs_list, img_masks_list):
+                print('img shape',img.shape)
+                #img = self.project_tensor_finale(img.unsqueeze(-1),T,C)
+                #img = img.unsqueeze(1)
+                M,N,O = img.shape
+                print('M,N,O',M,N,O)
+                #img = img[:, :, :N]
+                if(N < O):
+                    img = img[:, :, :N]
+                else:
+                    img = img[:, :O, :]
+                print('img shape',img.shape)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
@@ -517,6 +529,17 @@ class TransformerEncoder(FairseqEncoder):
 
         if self.is_fusion_top:
             for img, img_mask in zip(imgs_list, img_masks_list):
+                print('img shape',img.shape)
+                #img = self.project_tensor_final(img.unsqueeze(-1),T,C)
+                #img = img.unsqueeze(1) #unsqueeze is not required in case of BLIP
+                M,N,O = img.shape
+                print('M,N,O',M,N,O)
+                #img = img[ : :N]
+                if(N < O):
+                    img = img[:, :, :N]
+                else:
+                    img = img[:, :O, :]
+                print('img shape',img.shape)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1

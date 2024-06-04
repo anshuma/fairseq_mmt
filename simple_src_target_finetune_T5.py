@@ -4,6 +4,8 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration, Trainer, Train
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 import numpy as np
 
+import torch
+torch.cuda.empty_cache()
 # Load and prepare the dataset
 def load_texts(source_path, target_path):
     with open(source_path, 'r', encoding='utf-8') as src_file:
@@ -17,6 +19,8 @@ def create_dataset(source_texts, target_texts):
 
 train_source_texts, train_target_texts = load_texts('data/multi30k-en-de/train.en', 'data/multi30k-en-de/train.de')
 val_source_texts, val_target_texts = load_texts('data/multi30k-en-de/valid.en', 'data/multi30k-en-de/valid.de')
+#train_source_texts, train_target_texts = load_texts('small_dataset/data/multi30k-en-de/train.en', 'small_dataset/data/multi30k-en-de/train.de')
+#val_source_texts, val_target_texts = load_texts('small_dataset/data/multi30k-en-de/valid.en', 'small_dataset/data/multi30k-en-de/valid.de')
 
 train_dataset = create_dataset(train_source_texts, train_target_texts)
 val_dataset = create_dataset(val_source_texts, val_target_texts)
@@ -44,12 +48,16 @@ training_args = TrainingArguments(
     output_dir="./results",
     evaluation_strategy="epoch",
     learning_rate=3e-5,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
+    #per_device_train_batch_size=8,
+    #per_device_eval_batch_size=8,
+    per_device_train_batch_size=4,
+    per_device_eval_batch_size=4,
     num_train_epochs=10,
     weight_decay=0.01,
     save_total_limit=3,
     save_steps=10_000,
+    gradient_accumulation_steps=4,  # Accumulate gradients over 4 steps
+    fp16=True,
 )
 
 # Define a custom compute metrics function
@@ -88,3 +96,5 @@ trainer.train()
 # Save the model
 trainer.save_model("./finetuned_model_T5")
 tokenizer.save_pretrained("./finetuned_model_T5")
+#trainer.save_model("./finetuned_model_T5_small")
+#tokenizer.save_pretrained("./finetuned_model_T5_small")

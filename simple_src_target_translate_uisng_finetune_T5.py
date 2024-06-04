@@ -46,8 +46,10 @@ def calculate_bleu_score(reference_texts, translated_texts):
 
 
 # Load new texts and reference texts from files
-new_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.en')
-reference_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.de')
+#new_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.en')
+#reference_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.de')
+new_texts = load_texts('small_dataset/data/multi30k-en-de/train.en')
+reference_texts = load_texts('small_dataset/data/multi30k-en-de/train.de')
 reference_texts = [remove_bpe(text) for text in reference_texts]
 
 # Generate translations for all new texts
@@ -61,6 +63,7 @@ bleu_score = calculate_bleu_score(reference_texts, translated_texts)
 print(f"BLEU-4 score: {bleu_score}")
 
 # Optionally, save the translated texts to a file
-with open('small_dataset/data/multi30k-en-de/test.2016_T5.de', 'w', encoding='utf-8') as file:
+#with open('small_dataset/data/multi30k-en-de/test.2016_T5.de', 'w', encoding='utf-8') as file:
+with open('small_dataset/data/multi30k-en-de/train_T5.de', 'w', encoding='utf-8') as file:
     for text in translated_texts:
         file.write(text + '\n')

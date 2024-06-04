@@ -19,8 +19,8 @@ random_image_translation=0 #1
 length_penalty=0.8
 
 # set tag
-model_dir_tag=$image_feat/$image_feat-$mask_data
-#model_dir_tag=checkpoints/multi30k-en2de/blip_image_captioning_large/
+#model_dir_tag=$image_feat/$image_feat-$mask_data
+model_dir_tag=checkpoints/multi30k-en2fr/blip_image_captioning_large/multi30k-en2fr/
 if [ $task == "multi30k-en2de" ]; then
 	tgt_lang=de
 	if [ $mask_data == "mask0" ]; then
@@ -70,6 +70,8 @@ elif [ $image_feat == "vit_large_patch16_384" ]; then
 	image_feat_path=data/$image_feat
 	image_feat_dim=1024
 fi
+image_feat_path=data/blip_image_captioning_large/
+image_feat_dim=1024
 
 # data set
 ensemble=10
@@ -77,9 +79,9 @@ batch_size=128
 beam=5
 src_lang=en
 
-model_dir=$model_root_dir/$task/$model_dir_tag
+#model_dir=$model_root_dir/$task/$model_dir_tag
 
-#model_dir=checkpoints/multi30k-en2de/blip_image_captioning_large/
+model_dir=checkpoints/multi30k-en2fr/blip_image_captioning_large/multi30k-en2fr/
 checkpoint=checkpoint_best.pt
 
 if [ -n "$ensemble" ]; then
@@ -90,7 +92,7 @@ if [ -n "$ensemble" ]; then
 fi
 
 output=$model_dir/translation_$who.log
-checkpoint=checkpoint39.pt
+
 export CUDA_VISIBLE_DEVICES=$gpu
 
 cmd="fairseq-generate data-bin/$data_dir 
