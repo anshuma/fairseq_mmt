@@ -12,8 +12,8 @@ blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image
 blip_model.eval()
 
 # Define paths
-data_dir = '../small_dataset/data/multi30k-en-de'
-image_dir = '../small_dataset/flickr30k/flickr30k-images/'
+data_dir = '../data/multi30k-en-de'
+image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
 count1 = 0
 output_dir = '../data/VisualBert_blip_large'
@@ -76,14 +76,14 @@ def preprocess_example(image_path, text):
     })
     global count1
     if(count1 == 0):
-        print('visual_embeds',visual_embeds.shape)
-        print('visual_attention_mask.shape',visual_attention_mask.shape)
-        print('attention_mask.shape', inputs['attention_mask'].shape)
+        print('visual_embeds',visual_embeds.shape,flush=True)
+        print('visual_attention_mask.shape',visual_attention_mask.shape,flush=True)
+        print('attention_mask.shape', inputs['attention_mask'].shape,flush=True)
     count1 = count1+1
-    print('count', count1)
+    print('count', count1,flush=True)
     if(count1 % 50 == 0):
-        print('image_path',image_path)
-        print('count1',count1)
+        print('image_path',image_path,flush=True)
+        print('count1',count1,flush=True)
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True)
         last_layer_output = outputs.hidden_states[-1]
@@ -97,7 +97,7 @@ def load_and_preprocess_data(split):
             outputs.append(inputs)
     return outputs
 
-model = VisualBertForPreTraining.from_pretrained('./finetuned_model_VisualBERT_small')
+model = VisualBertForPreTraining.from_pretrained('uclanlp/visualbert-vqa-coco-pre')
 count = 1
 def generate_and_save_predictions(outputs, split):
     global max_length
@@ -107,21 +107,21 @@ def generate_and_save_predictions(outputs, split):
     model.eval()
     predictions = []
     for last_layer_output in outputs:
-            print('last_layer_output', last_layer_output.shape)
+            print('last_layer_output', last_layer_output.shape,flush=True)
             tmp.append(last_layer_output.detach())
             if len(tmp) == 2000:
                 res = torch.cat(tmp)
-                print(res.shape)
+                print(res.shape,flush=True)
                 torch.save(res, os.path.join(output_dir, str(count) + split + '.pth'))
                 count += 1
                 tmp = []
 
-    print('tmp', tmp)
+    print('tmp', tmp,flush=True)
     res = torch.cat(tmp)
     if count > 1:
         torch.save(res, os.path.join(output_dir, 'final' + split + '.pth'))
     else:
-        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
+        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth',flush=True)
         torch.save(res, os.path.join(output_dir, split + '.pth'))
 
     del tmp
@@ -131,7 +131,7 @@ def generate_and_save_predictions(outputs, split):
             _tmp.append(torch.load(os.path.join(output_dir, str(i) + split + '.pth')))
         _tmp.append(torch.load(os.path.join(output_dir, 'final' + split + '.pth')))
         res = torch.cat(_tmp).cpu()
-        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
+        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth',flush=True)
         torch.save(res, os.path.join(output_dir, split + '.pth'))
 
         # delete
