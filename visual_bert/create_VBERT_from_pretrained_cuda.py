@@ -97,11 +97,11 @@ def generate_and_save_predictions(encodings, split):
             predicted_sentence = tokenizer.decode(predicted_tokens[0], skip_special_tokens=True)
             predictions.append(predicted_sentence)
             last_layer_output = outputs.hidden_states[-1]
-            print('last_layer_output', last_layer_output.shape)
+            print('last_layer_output', last_layer_output.shape, flush=True)
             tmp.append(last_layer_output.detach().to('device'))
             if len(tmp) == 2000:
                 res = torch.cat(tmp)
-                print(res.shape)
+                print(res.shape, flush=True)
                 torch.save(res, os.path.join(output_dir, str(count) + split + '.pth'))
                 count += 1
                 tmp = []
@@ -110,12 +110,12 @@ def generate_and_save_predictions(encodings, split):
         for prediction in predictions:
             f.write(f"{prediction}\n")
 
-    print('tmp', tmp)
+    print('tmp', tmp, flush=True)
     res = torch.cat(tmp).cpu()
     if count > 1:
         torch.save(res, os.path.join(output_dir, 'final' + split + '.pth'))
     else:
-        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
+        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth', flush=True)
         torch.save(res, os.path.join(output_dir, split + '.pth'))
 
     del tmp
@@ -125,7 +125,7 @@ def generate_and_save_predictions(encodings, split):
             _tmp.append(torch.load(os.path.join(output_dir, str(i) + split + '.pth')))
         _tmp.append(torch.load(os.path.join(output_dir, 'final' + split + '.pth')))
         res = torch.cat(_tmp).cpu()
-        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth')
+        print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth', flush=True)
         torch.save(res, os.path.join(output_dir, split + '.pth'))
 
         # delete
