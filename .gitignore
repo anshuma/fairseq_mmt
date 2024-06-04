@@ -161,3 +161,4 @@ small_dataset/flickr30k/flickr30k-images
 small_dataset/flickr30k/flickr30k-images.tar.gz
 small_dataset/flickr30k/flickr30k.tar.gz
 visual_bert/finetuned_model_VisualBERT*
+mid_data/

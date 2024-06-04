@@ -15,8 +15,8 @@ def load_texts(source_path, target_path):
 def create_dataset(source_texts, target_texts):
     return Dataset.from_dict({"translation": [{"src": src, "tgt": tgt} for src, tgt in zip(source_texts, target_texts)]})
 
-train_source_texts, train_target_texts = load_texts('data/multi30k-en-de/train.en', 'data/multi30k-en-de/train.de')
-val_source_texts, val_target_texts = load_texts('data/multi30k-en-de/valid.en', 'data/multi30k-en-de/valid.de')
+train_source_texts, train_target_texts = load_texts('mid_data/multi30k-en-de/train.en', 'mid_data/multi30k-en-de/train.de')
+val_source_texts, val_target_texts = load_texts('mid_data/multi30k-en-de/valid.en', 'mid_data/multi30k-en-de/valid.de')
 
 train_dataset = create_dataset(train_source_texts, train_target_texts)
 val_dataset = create_dataset(val_source_texts, val_target_texts)

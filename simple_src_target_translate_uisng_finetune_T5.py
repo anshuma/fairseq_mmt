@@ -3,11 +3,14 @@ import torch
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 # Load the fine-tuned model and tokenizer
-#model_name = "./finetuned_model"
-model_name = "t5-base"
+model_name = "./finetuned_model_T5"
+#model_name = "t5-base"
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
 
+# Ensure the model is in evaluation mode
 # Ensure the model is in evaluation mode
 model.eval()
 
@@ -17,11 +20,11 @@ def load_texts(file_path):
         return [line.strip() for line in file.readlines()]
 
 
-def generate_translation(text, model, tokenizer):
+def generate_translation(text, model, tokenizer,device):
     # Prepare the input text
     input_text = f"translate English to German: {text}"
     inputs = tokenizer(input_text, return_tensors="pt", padding="max_length", truncation=True, max_length=128)
-
+    inputs = {key: value.to(device) for key, value in inputs.items()}
     # Generate the translation
     with torch.no_grad():
         outputs = model.generate(**inputs)
@@ -46,12 +49,12 @@ def calculate_bleu_score(reference_texts, translated_texts):
 
 
 # Load new texts and reference texts from files
-new_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.en')
-reference_texts = load_texts('small_dataset/data/multi30k-en-de/test.2016.de')
+new_texts = load_texts('data/multi30k-en-de/train.en')
+reference_texts = load_texts('data/multi30k-en-de/train.de')
 reference_texts = [remove_bpe(text) for text in reference_texts]
 
 # Generate translations for all new texts
-translated_texts = [generate_translation(text, model, tokenizer) for text in new_texts]
+translated_texts = [generate_translation(text, model, tokenizer, device) for text in new_texts]
 
 # Remove BPE tokens from the translations
 translated_texts = [remove_bpe(text) for text in translated_texts]
@@ -61,6 +64,6 @@ bleu_score = calculate_bleu_score(reference_texts, translated_texts)
 print(f"BLEU-4 score: {bleu_score}")
 
 # Optionally, save the translated texts to a file
-with open('small_dataset/data/multi30k-en-de/test.2016_T5.de', 'w', encoding='utf-8') as file:
+with open('data/multi30k-en-de/train_T5.de', 'w', encoding='utf-8') as file:
     for text in translated_texts:
         file.write(text + '\n')
