@@ -66,6 +66,16 @@ def preprocess_example(image_path, text):
         "visual_attention_mask": visual_attention_mask,
         "labels": labels.squeeze(0)
     })
+    global count1
+    if (count1 == 0):
+        print('visual_embeds', visual_embeds.shape, flush=True)
+        print('visual_attention_mask.shape', visual_attention_mask.shape, flush=True)
+        print('attention_mask.shape', inputs['attention_mask'].shape, flush=True)
+    count1 = count1 + 1
+    print('count', count1, flush=True)
+    if (count1 % 50 == 0):
+        print('image_path', image_path, flush=True)
+        print('count1', count1, flush=True)
 
     with torch.no_grad():
         outputs = model(**inputs, output_hidden_states=True)
