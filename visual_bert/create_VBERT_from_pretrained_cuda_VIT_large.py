@@ -3,7 +3,7 @@ from transformers import BertTokenizer, VisualBertForPreTraining, BlipProcessor,
 from PIL import Image
 import pandas as pd
 import os
-torch.cuda.empty_cache()
+
 # Define device as CUDA if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -16,7 +16,7 @@ blip_model.eval()
 data_dir = '../data/multi30k-en-de'
 image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
-output_dir = '../data/VisualBert_blip_large_DE'
+output_dir = '../data/VisualBert_blip_large'
 
 # Ensure output directory exists
 os.makedirs(output_dir, exist_ok=True)
@@ -25,7 +25,7 @@ def load_data(split):
     try:
         with open(f'{image_idx_dir}/{split}.txt', 'r') as f:
             indices = f.read().splitlines()
-        with open(f'{data_dir}/{split}.de', 'r') as f:
+        with open(f'{data_dir}/{split}.en', 'r') as f:
             captions = f.read().splitlines()
         data = pd.DataFrame({'index': indices, 'caption': captions})
         return data
@@ -50,7 +50,6 @@ def get_visual_embedding_blip(image_path):
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
 
-mapping_output = torch.nn.Linear(1089, 768).to(device)
 count1 = 0
 def load_and_preprocess_data(split):
     data = load_data(split)
@@ -95,9 +94,6 @@ def load_and_preprocess_data(split):
 
                 outputs = model(**inputs, output_hidden_states=True)
                 last_layer_output = outputs.hidden_states[-1]
-                #last_layer_output = last_layer_output.squeeze(0)
-                #last_layer_output = mapping_output(last_layer_output)
-                #last_layer_output = last_layer_output.unsqueeze(0)
                 print('last_layer_output', last_layer_output.shape, flush=True)
                 #tmp.append(last_layer_output.detach().to('device'))
                 tmp.append(last_layer_output.detach().to(device))
@@ -134,5 +130,5 @@ def load_and_preprocess_data(split):
 
 
 # Process and generate outputs for train, validation, and test sets
-train_outputs = load_and_preprocess_data('test.2016')
+train_outputs = load_and_preprocess_data('train')
 #generate_and_save_predictions(train_outputs, 'train')

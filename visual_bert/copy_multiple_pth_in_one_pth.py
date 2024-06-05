@@ -1,7 +1,7 @@
 import torch
 import os
-output_dir = '../data/VisualBert_blip_large'
-
+#output_dir = '../data/VisualBert_DE_vit_base_patch14_reg4_dinov'
+output_dir = '../data/VisualBert_blip_large_DE'
 def load_and_preprocess_data(split):
 
     count = 15
@@ -13,7 +13,7 @@ def load_and_preprocess_data(split):
         _tmp.append(torch.load(os.path.join(output_dir, 'final' + split + '.pth'), map_location='cpu'))
         res = torch.cat(_tmp).cpu()
         #print('feature shape:', res.shape, ',save in:', output_dir + '/' + split + '.pth', flush=True)
-        torch.save(res, os.path.join(output_dir, split + '.pth'), map_location='cpu')
+        torch.save(res, os.path.join(output_dir, split + '.pth'))
 
         # delete
         for i in range(1, count):

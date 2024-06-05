@@ -63,7 +63,8 @@ if __name__ == "__main__":
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     print('extracting ' + dataset + '\'s image feature from '+model_name) 
-    model = timm.create_model(model_name, pretrained=True, num_classes=0).to('cuda:0') # if use cpu, uncomment '.to('cuda:0')'
+    #model = timm.create_model(model_name, pretrained=True, num_classes=0).to('cuda:0') # if use cpu, uncomment '.to('cuda:0')'
+    model = timm.create_model('vit_base_patch14_reg4_dinov2.lvd142m',pretrained=True,num_classes=0,).to('cuda:0')  # remove classifier nn.Linear)
     model.eval()
     config = resolve_data_config({}, model=model)
     transform = create_transform(**config)
@@ -79,6 +80,7 @@ if __name__ == "__main__":
             img = Image.open(i).convert("RGB")
             input = transform(img).unsqueeze(0).to('cuda:0') # transform and add batch dimension
             
+            #out = model.forward_features(input)
             out = model.forward_features(input)
             
             #tmp.append(out.detach().to('cuda:1'))

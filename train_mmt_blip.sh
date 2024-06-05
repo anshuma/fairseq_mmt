@@ -6,8 +6,9 @@ task=multi30k-en2de
 image_feat=vit_base_patch16_384
 mask_data=mask0
 tag=$image_feat/$image_feat-$mask_data
-#save_dir=checkpoints/$task/$tag_notFusionTop
-save_dir=checkpoints/$task/vit_base_patch14_reg4_dinov2_notFusionTop
+#save_dir=checkpoints/$task/$tag
+#save_dir=checkpoints/$task/VisualBert_blip_large_fusion_top
+save_dir=checkpoints/$task/VisualBert_blip_large_DE_fusion_top
 
 if [ ! -d $save_dir ]; then
         mkdir -p $save_dir
@@ -67,23 +68,24 @@ SA_attention_dropout=0.1
 SA_image_dropout=0.1
 
 if [ $image_feat == "vit_tiny_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=192
 elif [ $image_feat == "vit_small_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=384
 elif [ $image_feat == "vit_base_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=768
 elif [ $image_feat == "vit_large_patch16_384" ]; then
-	image_feat_path=data/$image_feat
+	image_feat_path=small_dataset/data/$image_feat
 	image_feat_dim=1024
 fi
 
 # multi-feature
 #image_feat_path=data/vit_large_patch16_384 data/vit_tiny_patch16_384
 #image_feat_dim=1024 192
-image_feat_path=data/vit_base_patch14_reg4_dinov2
+#image_feat_path=data/VisualBert_blip_large
+image_feat_path=data/VisualBert_blip_large_DE
 image_feat_dim=768
 
 cp ${BASH_SOURCE[0]} $save_dir/train.sh

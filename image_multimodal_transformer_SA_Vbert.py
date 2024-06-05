@@ -508,11 +508,10 @@ class TransformerEncoder(FairseqEncoder):
                 else:
                     img = img[:, :, :N]
                 print('img.shape',img.shape)
-                #img = img.unsqueeze(1)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
-            x = self.f(xs, fun='sum')
+            #x = self.f(xs, fun='sum')
             
         # encoder layers
         for layer in self.layers:
@@ -532,13 +531,12 @@ class TransformerEncoder(FairseqEncoder):
                     img = img[:, :O, :]
                 else:
                     img = img[:, :, :N]
-                img = img.unsqueeze(1)
                 print('img.shape',img.shape)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
             #x = self.f(xs, fun='sum')
-        #x = self.f(xs, fun='sum')
+        x = self.f(xs, fun='sum')
 
 
         return EncoderOut(
@@ -1087,8 +1085,8 @@ def image_multimodal_transformer_SA_top(args):
     args.decoder_layers = getattr(args, "decoder_layers", 4)
 
     # args for image MMT
-    #args.is_fusion_top = getattr(args, 'is_fusion_top', True)
-    args.is_fusion_top = False
+    args.is_fusion_top = getattr(args, 'is_fusion_top', True)
+    #args.is_fusion_top = False
 
     base_architecture(args)
 

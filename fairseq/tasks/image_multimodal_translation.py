@@ -145,6 +145,7 @@ def load_langpair_dataset(
         # get image feature path
         feat_pth_path = os.path.join(image_feat_path, split+'.pth')
         mask_pth_path = os.path.join(image_feat_path, split+'_mask.pth')
+        print('feat_pth_path', feat_pth_path)
         assert os.path.exists(feat_pth_path) == True, 'not found image feature'
 
         img_dataset = ImageDataset(feat_pth_path, mask_pth_path)

@@ -30,6 +30,7 @@ def infer_init_method(args, force_distributed=False):
     if args.distributed_init_method is not None or getattr(args, "tpu", False):
         return
 
+    args.distributed_world_size = 1
     if args.pipeline_model_parallel:
         balance_exists = (
             args.pipeline_balance is not None
@@ -80,7 +81,8 @@ def infer_init_method(args, force_distributed=False):
         for key in ["MASTER_ADDR", "MASTER_PORT", "WORLD_SIZE", "RANK"]
     ):
         args.distributed_init_method = "env://"
-        args.distributed_world_size = int(os.environ["WORLD_SIZE"])
+        #args.distributed_world_size = int(os.environ["WORLD_SIZE"])
+        args.distributed_world_size = 1
         args.distributed_rank = int(os.environ["RANK"])
         # processes are created by torch.distributed.launch
         args.distributed_no_spawn = True
@@ -112,7 +114,8 @@ def infer_init_method(args, force_distributed=False):
                     gpus_per_node = torch.cuda.device_count()
                     node_id = int(os.environ.get("SLURM_NODEID"))
                     args.distributed_rank = node_id * gpus_per_node
-                    args.distributed_world_size = nnodes * gpus_per_node
+                    #args.distributed_world_size = nnodes * gpus_per_node
+                    args.distributed_world_size = 1
                 elif args.pipeline_model_parallel:
                     assert ntasks_per_node == num_pipelines_per_node, (
                         "SLURM --ntasks-per-node must match number of pipelines per "
@@ -130,7 +133,8 @@ def infer_init_method(args, force_distributed=False):
                     args.device_id = local_id
                     # We also want to set distributed_world_size to be the total
                     # number of pipelines across all nodes.
-                    args.distributed_world_size = nnodes * num_pipelines_per_node
+                    #args.distributed_world_size = nnodes * num_pipelines_per_node
+                    args.distributed_world_size = 1
                 else:
                     assert ntasks_per_node == args.distributed_world_size // nnodes
                     args.distributed_no_spawn = True

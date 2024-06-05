@@ -490,6 +490,8 @@ class ShardedIterator(CountingIterator):
     """
 
     def __init__(self, iterable, num_shards, shard_id, fill_value=None):
+        print('torch.cuda.device_count()',torch.cuda.device_count())
+        print('shard_id',shard_id)
         if shard_id < 0 or shard_id >= num_shards:
             raise ValueError("shard_id must be between 0 and num_shards")
         sharded_len = int(math.ceil(len(iterable) / float(num_shards)))

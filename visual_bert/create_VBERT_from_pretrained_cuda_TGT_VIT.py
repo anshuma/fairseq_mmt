@@ -3,20 +3,24 @@ from transformers import BertTokenizer, VisualBertForPreTraining, BlipProcessor,
 from PIL import Image
 import pandas as pd
 import os
-torch.cuda.empty_cache()
+import timm
+from tqdm import tqdm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 # Define device as CUDA if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load models and model components
-blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(device)
-blip_model.eval()
+#blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
+#blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(device)
+#blip_model.eval()
 
 # Define paths
 data_dir = '../data/multi30k-en-de'
 image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
-output_dir = '../data/VisualBert_blip_large_DE'
+#output_dir = '../data/VisualBert_blip_large'
+output_dir = '../data/VisualBert_DE_vit_base_patch14_reg4_dinov'
 
 # Ensure output directory exists
 os.makedirs(output_dir, exist_ok=True)
@@ -33,24 +37,33 @@ def load_data(split):
         print(f"Error loading {split} data: {e}")
         return None
 
+#vit_model = timm.create_model('vit_base_patch14_reg4_dinov2.lvd142m',pretrained=True,num_classes=0,).to(device)  # remove classifier nn.Linear)
+vit_model = timm.create_model('timm/vit_large_patch14_reg4_dinov2.lvd142m',pretrained=True,num_classes=0,).to(device)  # remove classifier nn.Linear)
+vit_model.eval()
+config = resolve_data_config({}, model=vit_model)
+transform = create_transform(**config)
 # Linear projection with CUDA
-linear_projection = torch.nn.Linear(1024, 2048).to(device)
+#linear_projection = torch.nn.Linear(768, 1024).to(device)
 
 
 def get_visual_embedding_blip(image_path):
     img = Image.open(image_path).convert("RGB")
-    inputs = blip_processor(images=img, return_tensors="pt").to(device)
-    vision_outputs = blip_model.vision_model(pixel_values=inputs['pixel_values'], return_dict=True)
-    out = vision_outputs.last_hidden_state
-    out = linear_projection(out)
+    #inputs = blip_processor(images=img, return_tensors="pt").to(device)
+    #vision_outputs = blip_model.vision_model(pixel_values=inputs['pixel_values'], return_dict=True)
+    #out = vision_outputs.last_hidden_state
+    #out = linear_projection(out)
+    input = transform(img).unsqueeze(0).to(device) # transform and add batch dimension
+    #out = model.forward_features(input)
+    out = vit_model.forward_features(input)
+    #out = linear_projection(out)
     return out
 
 
 # Initialize tokenizer
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
+#model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
+model = VisualBertForPreTraining.from_pretrained('uclanlp/visualbert-nlvr2-coco-pre').to(device)
 
-mapping_output = torch.nn.Linear(1089, 768).to(device)
 count1 = 0
 def load_and_preprocess_data(split):
     data = load_data(split)
@@ -95,9 +108,6 @@ def load_and_preprocess_data(split):
 
                 outputs = model(**inputs, output_hidden_states=True)
                 last_layer_output = outputs.hidden_states[-1]
-                #last_layer_output = last_layer_output.squeeze(0)
-                #last_layer_output = mapping_output(last_layer_output)
-                #last_layer_output = last_layer_output.unsqueeze(0)
                 print('last_layer_output', last_layer_output.shape, flush=True)
                 #tmp.append(last_layer_output.detach().to('device'))
                 tmp.append(last_layer_output.detach().to(device))
@@ -134,5 +144,5 @@ def load_and_preprocess_data(split):
 
 
 # Process and generate outputs for train, validation, and test sets
-train_outputs = load_and_preprocess_data('test.2016')
+train_outputs = load_and_preprocess_data('train')
 #generate_and_save_predictions(train_outputs, 'train')
