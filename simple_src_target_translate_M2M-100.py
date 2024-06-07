@@ -1,44 +1,56 @@
+import torch
 from transformers import M2M100ForConditionalGeneration, M2M100Tokenizer
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+import sacrebleu
 
-def load_texts(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return [line.strip() for line in file.readlines()]
+model_checkpoint = "facebook/m2m100_418M"
+# Load the tokenizer and model
+tokenizer = M2M100Tokenizer.from_pretrained(model_checkpoint)
+model = M2M100ForConditionalGeneration.from_pretrained(model_checkpoint)
 
-def translate_text(model, tokenizer, text, src_lang, tgt_lang):
+# Ensure the model is in evaluation mode
+model.eval()
+
+# Move model to GPU if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model.to(device)
+
+def translate(text, src_lang, tgt_lang):
+    # Prepare the input text
     tokenizer.src_lang = src_lang
-    encoded = tokenizer(text, return_tensors="pt")
-    generated_tokens = model.generate(**encoded, forced_bos_token_id=tokenizer.get_lang_id(tgt_lang))
-    return tokenizer.decode(generated_tokens[0], skip_special_tokens=True)
+    encoded_text = tokenizer(text, return_tensors="pt").to(device)
+    generated_tokens = model.generate(**encoded_text, forced_bos_token_id=tokenizer.get_lang_id(tgt_lang))
+    translated_text = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)[0]
+    return translated_text
 
+def read_from_file(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.readlines()
 
 def write_to_file(file_path, lines):
     with open(file_path, 'w', encoding='utf-8') as file:
         file.writelines(lines)
 
-# Load the model and tokenizer
-model_name = "facebook/m2m100_418M"
-tokenizer = M2M100Tokenizer.from_pretrained(model_name)
-model = M2M100ForConditionalGeneration.from_pretrained(model_name)
+src_lang = 'en'
+tgt_lang = 'de'
 
-# Load source and reference texts
-source_texts = load_texts('small_dataset/data/multi30k-en-de/train.en')
-reference_texts = [line.split('\t') for line in load_texts('small_dataset/data/multi30k-en-de/train.de')]
-output_file = 'small_dataset/data/multi30k-en-de/train_src_M2M.de'
+input_file = 'small_dataset/data/multi30k-en-de/train.en'  # Path to the input file containing source language text
+output_file = 'small_dataset/data/multi30k-en-de/train_src.de'  # Path to the output file for the translated text
+reference_file = 'small_dataset/data/multi30k-en-de/train.de'  # Path to the reference file containing target language text
 
-# Define source and target languages
-src_lang = "en"  # English
-tgt_lang = "de"  # German
+# Read source lines and reference lines
+src_lines = read_from_file(input_file)
+ref_lines = read_from_file(reference_file)
 
-# Generate translations
-translated_texts = [translate_text(model, tokenizer, text, src_lang, tgt_lang) for text in source_texts]
-write_to_file(output_file, translated_texts)
-# Calculate BLEU-4 score
-smoothie = SmoothingFunction().method4
-bleu_scores = [
-    sentence_bleu([ref], trans.split(), smoothing_function=smoothie, weights=(0.25, 0.25, 0.25, 0.25))
-    for ref, trans in zip(reference_texts, translated_texts)
-]
+# Translate source lines
+translated_lines = [translate(line.strip(), src_lang, tgt_lang) + '\n' for line in src_lines]
 
-avg_bleu_score = sum(bleu_scores) / len(bleu_scores)
-print(f"BLEU-4 Score: {avg_bleu_score:.4f}")
+# Write translations to file
+write_to_file(output_file, translated_lines)
+print(f"Translation complete. Translated text saved to {output_file}")
+
+# Calculate BLEU score
+translated_lines_stripped = [line.strip() for line in translated_lines]
+ref_lines_stripped = [line.strip() for line in ref_lines]
+bleu = sacrebleu.corpus_bleu(translated_lines_stripped, [ref_lines_stripped])
+
+print(f"BLEU score: {bleu.score:.2f}")
