@@ -3,6 +3,7 @@ from transformers import BertTokenizer, VisualBertForPreTraining, BlipProcessor,
 from PIL import Image
 import pandas as pd
 import os
+import torch.nn.functional as F
 torch.cuda.empty_cache()
 # Define device as CUDA if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -16,7 +17,7 @@ blip_model.eval()
 data_dir = '../data/multi30k-en-de'
 image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
-output_dir = '../data/VisualBert_blip_large_DE'
+output_dir = '../data/VisualBert_blip_large_DE_8June_finetune'
 
 # Ensure output directory exists
 os.makedirs(output_dir, exist_ok=True)
@@ -27,7 +28,12 @@ def load_data(split):
             indices = f.read().splitlines()
         with open(f'{data_dir}/{split}.de', 'r') as f:
             captions = f.read().splitlines()
-        data = pd.DataFrame({'index': indices, 'caption': captions})
+        with open(f'{data_dir}/{split}_T5.de', 'r') as f:
+            captions1 = f.read().splitlines()
+        #combined_captions = [f"{cap} {cap1}" for cap, cap1 in zip(captions, captions1)]
+        #print("combined_captions[0]",combined_captions[0])
+        #data = pd.DataFrame({'index': indices, 'caption': combined_captions})
+        data = pd.DataFrame({'index': indices, 'caption': captions1})
         return data
     except Exception as e:
         print(f"Error loading {split} data: {e}")
@@ -42,13 +48,15 @@ def get_visual_embedding_blip(image_path):
     inputs = blip_processor(images=img, return_tensors="pt").to(device)
     vision_outputs = blip_model.vision_model(pixel_values=inputs['pixel_values'], return_dict=True)
     out = vision_outputs.last_hidden_state
+    print('out.shape',out.shape)
     out = linear_projection(out)
     return out
 
 
 # Initialize tokenizer
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
+#model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
+model = VisualBertForPreTraining.from_pretrained("./finetuned_model_VisualBERT_large_FRCNN").to(device)
 
 mapping_output = torch.nn.Linear(1089, 768).to(device)
 count1 = 0
@@ -98,6 +106,27 @@ def load_and_preprocess_data(split):
                 #last_layer_output = last_layer_output.squeeze(0)
                 #last_layer_output = mapping_output(last_layer_output)
                 #last_layer_output = last_layer_output.unsqueeze(0)
+                print('last_layer_output', last_layer_output.shape, flush=True)
+                M, N, O = last_layer_output.shape
+                if N > O:
+                    last_layer_output= last_layer_output[:, :O, :]
+                else:
+                    last_layer_output= last_layer_output[:, :, :N]
+                '''
+                if O>N:
+                    pool_size = O // N
+                    print('O,N,pools_zie',O,N,pool_size)
+                    #last_layer_output = F.avg_pool1d(last_layer_output.view(-1, 1, O), kernel_size=pool_size, stride=pool_size).view(M, N, N)
+                    #last_layer_output.view = F.adaptive_avg_pool1d(last_layer_output.view.view(M * N, 1, O), N).view(M, N, N)
+                    last_layer_output.view = F.adaptive_max_pool1d(last_layer_output.view.view(M * N, 1, O), N).view(M, N, N)
+                else:
+                    pool_size = N // O
+                    print('O,N,pools_zie',O,N,pool_size)
+                    #last_layer_output = F.avg_pool1d(last_layer_output.transpose(1, 2).view(-1, N), kernel_size=pool_size, stride=pool_size).view(M, O, O)
+                    #last_layer_output = F.adaptive_avg_pool1d(last_layer_output.transpose(1, 2), O).transpose(1, 2)
+                    last_layer_output = F.adaptive_max_pool1d(last_layer_output.transpose(1, 2), O).transpose(1, 2)
+                '''
+
                 print('last_layer_output', last_layer_output.shape, flush=True)
                 #tmp.append(last_layer_output.detach().to('device'))
                 tmp.append(last_layer_output.detach().to(device))

@@ -9,11 +9,7 @@ tag=$image_feat/$image_feat-$mask_data
 #save_dir=checkpoints/$task/$tag
 #save_dir=checkpoints/$task/VisualBert_blip_large_fusion_top
 #save_dir=checkpoints/$task/VisualBert_blip_large_EN_fusion_top_finetune
-#save_dir=checkpoints/$task/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de
-#save_dir=checkpoints/$task/VisualBert_blip_large_DE_8June_maxpool
-#save_dir=checkpoints/$task/VisualBert_blip_large_DE_8June_avgpool_withFusionTop
-#save_dir=checkpoints/$task/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_fusiontop
-save_dir=checkpoints/$task/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_finetune
+save_dir=checkpoints/$task/VisualBert_blip_large_DE_finetuned_de_raw
 
 if [ ! -d $save_dir ]; then
         mkdir -p $save_dir
@@ -92,10 +88,7 @@ fi
 #image_feat_path=data/VisualBert_blip_large
 #image_feat_path=data/VisualBert_blip_large_DE
 #image_feat_path=data/VisualBert_blip_large_DE_finetuned
-#image_feat_path=data/VisualBert_blip_large_DE_8June
-#image_feat_path=data/VisualBert_blip_large_DE_8June_maxpool
-#image_feat_path=data/VisualBert_blip_large_DE_8June_avgpool
-image_feat_path=data/VisualBert_blip_large_DE_8June_finetune
+image_feat_path=data/VisualBert_blip_large_DE_finetuned_de_raw
 image_feat_dim=768
 
 cp ${BASH_SOURCE[0]} $save_dir/train.sh
@@ -103,7 +96,7 @@ cp ${BASH_SOURCE[0]} $save_dir/train.sh
 gpu_num=`echo "$device" | awk '{split($0,arr,",");print length(arr)}'`
 echo $gpu_n
 echo "starting traing"
-cmd="fairseq-train data-bin/$data_dir
+cmd="fairseq-train raw_data-bin/$data_dir
   --save-dir $save_dir
   --distributed-world-size 0 -s $src_lang -t $tgt_lang
   --arch $arch

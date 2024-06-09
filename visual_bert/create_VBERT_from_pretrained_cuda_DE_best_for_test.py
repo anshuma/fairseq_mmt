@@ -13,7 +13,7 @@ blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image
 blip_model.eval()
 
 # Define paths
-data_dir = '../data/multi30k-en-de'
+data_dir = '../raw_data/'
 image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
 output_dir = '../data/VisualBert_blip_large_DE'

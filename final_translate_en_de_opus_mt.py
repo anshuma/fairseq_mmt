@@ -36,6 +36,9 @@ tgt_lang = 'deu'
 input_file = 'raw_data/test_2016_flickr.en'  # Path to the input file containing source language text
 output_file = 'raw_data/test_2016_flickr_trans.de'  # Path to the output file for the translated text
 reference_file = 'raw_data/test_2016_flickr.de'  # Path to the reference file containing target language text
+#input_file = 'data/multi30k-en-de/test.2016.en'  # Path to the input file containing source language text
+#output_file = 'data/multi30k-en-de/test.2016trans.de'  # Path to the output file for the translated text
+#reference_file = 'data/multi30k-en-de/test.2016.de'  # Path to the reference file containing target language text
 
 # Read source lines and reference lines
 src_lines = read_from_file(input_file)

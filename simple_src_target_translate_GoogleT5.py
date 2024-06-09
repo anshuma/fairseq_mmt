@@ -37,9 +37,9 @@ tgt_lang = 'German'
 #output_file = 'small_dataset/data/multi30k-en-de/train_src.de'  # Path to the output file for the translated text
 #reference_file = 'small_dataset/data/multi30k-en-de/train.de'  # Path to the reference file containing target language text
 
-input_file = 'final_raw_data/valid.en'  # Path to the input file containing source language text
-output_file = 'final_raw_data/valid_T5.de'  # Path to the output file for the translated text
-reference_file = 'final_raw_data/valid.de'  # Path to the reference file containing target language text
+input_file = 'dataset/data/task1/raw/test_2016_flickr.en'  # Path to the input file containing source language text
+output_file = 'dataset/data/task1/raw/test.2016_T5.de'  # Path to the output file for the translated text
+reference_file = 'dataset/data/task1/raw/test_2016_flickr.de'  # Path to the reference file containing target language text
 # Read source lines and reference lines
 src_lines = read_from_file(input_file)
 ref_lines = read_from_file(reference_file)

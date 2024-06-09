@@ -21,7 +21,7 @@ import os
 
 
 # load models and model components
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load models and model components
 blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
@@ -29,9 +29,9 @@ blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image
 blip_model.eval()
 
 # Define paths
-data_dir = '../small_dataset/data/multi30k-en-de'
-image_dir = '../small_dataset/flickr30k/flickr30k-images/'
-image_idx_dir = '../small_dataset/flickr30k/'
+data_dir = '../data/multi30k-en-de'
+image_dir = '../flickr30k/flickr30k-images/'
+image_idx_dir = '../flickr30k/'
 count = 0
 # Load indices and captions
 def load_data(split):
@@ -67,14 +67,16 @@ def preprocess_data(row):
     visual_embeds = get_visual_embedding_blip(image_path)
     visual_token_type_ids = torch.ones(visual_embeds.shape[:-1], dtype=torch.long)
     visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float)
+    #visual_token_type_ids = torch.ones(visual_embeds.shape[:-1], dtype=torch.long, device=device)
+    #visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float, device=device)
 
-    inputs = tokenizer(row['caption'], padding='max_length', truncation=True, return_tensors='pt')
+    inputs = tokenizer(row['caption'], padding='max_length', truncation=True, return_tensors='pt')#.to(device)
     max_length = inputs["input_ids"].shape[-1] + visual_embeds.shape[-2]
     #print('max_length',max_length)
     labels = tokenizer(row['caption'], return_tensors="pt", padding="max_length", max_length=max_length)[
-        "input_ids"].float()
+        "input_ids"].float()#.to(device)
     #print('labels.shape',labels.shape)
-    sentence_image_labels = torch.tensor(1).unsqueeze(0)
+    sentence_image_labels = torch.tensor(1).unsqueeze(0)#.to(device)
     inputs.update({
         "visual_embeds": visual_embeds,
         "visual_token_type_ids": visual_token_type_ids,
@@ -130,7 +132,7 @@ valid_dataset = create_dataset(valid_encodings) if valid_data is not None else N
 test_dataset = create_dataset(test_encodings) if test_data is not None else None
 
 # Initialize the model
-model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre")
+model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre")#.to(device)
 
 print('started training')
 # Define training arguments

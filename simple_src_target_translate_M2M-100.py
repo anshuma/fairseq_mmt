@@ -33,9 +33,9 @@ def write_to_file(file_path, lines):
 src_lang = 'en'
 tgt_lang = 'de'
 
-input_file = 'small_dataset/data/multi30k-en-de/train.en'  # Path to the input file containing source language text
-output_file = 'small_dataset/data/multi30k-en-de/train_src.de'  # Path to the output file for the translated text
-reference_file = 'small_dataset/data/multi30k-en-de/train.de'  # Path to the reference file containing target language text
+input_file = 'raw_data/test.2016.en'  # Path to the input file containing source language text
+output_file = 'raw_data/test.2016_M2M100_src_de'  # Path to the output file for the translated text
+reference_file = 'raw_data/test.2016.de'  # Path to the reference file containing target language text
 
 # Read source lines and reference lines
 src_lines = read_from_file(input_file)

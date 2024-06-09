@@ -32,13 +32,15 @@ from torchvision.ops.boxes import batched_nms, nms
 
 from utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # other:
 def norm_box(boxes, raw_sizes):
     if not isinstance(boxes, torch.Tensor):
         normalized_boxes = boxes.copy()
     else:
         normalized_boxes = boxes.clone()
+    normalized_boxes = normalized_boxes.to(device)
+    raw_sizes = raw_sizes.to(device)
     normalized_boxes[:, :, (0, 2)] /= raw_sizes[:, 1]
     normalized_boxes[:, :, (1, 3)] /= raw_sizes[:, 0]
     return normalized_boxes

@@ -76,10 +76,7 @@ fi
 #image_feat_dim=768
 #image_feat_path=data/VisualBert_blip_large_DE
 #image_feat_path=data/VisualBert_blip_large_DE_finetuned_en
-#image_feat_path=data/VisualBert_blip_large_DE_8June
-#image_feat_path=data/VisualBert_blip_large_DE_8June_avgpool
-#image_feat_path=data/VisualBert_blip_large_DE_8June_maxpool
-image_feat_path=data/VisualBert_blip_large_DE_8June_finetune
+image_feat_path=data/VisualBert_blip_large_DE_finetuned_de
 image_feat_dim=768
 # data set
 ensemble=10
@@ -93,13 +90,7 @@ src_lang=en
 #model_dir=checkpoints/multi30k-en2de/vit_base_patch14_reg4_dinov2_notFusionTop
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_fusion_top/
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_EN_fusion_top_finetune/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_finetuned_de/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_8June_avgpool/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_8June_maxpool/
-#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_fusiontop
-model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_finetune
+model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_finetuned_de/
 checkpoint=checkpoint_best.pt
 
 if [ -n "$ensemble" ]; then

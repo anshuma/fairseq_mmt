@@ -3,6 +3,9 @@ from transformers import BertTokenizer, VisualBertForPreTraining, BlipProcessor,
 from PIL import Image
 import pandas as pd
 import os
+import timm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 torch.cuda.empty_cache()
 # Define device as CUDA if available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -13,10 +16,12 @@ blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image
 blip_model.eval()
 
 # Define paths
-data_dir = '../data/multi30k-en-de'
+#data_dir = '../data/multi30k-en-de'
+data_dir = '../final_raw_data/'
+#data_dir = '../raw_data/'
 image_dir = '../flickr30k/flickr30k-images/'
 image_idx_dir = '../flickr30k/'
-output_dir = '../data/VisualBert_blip_large_DE_finetuned_de'
+output_dir = '../data/VisualBert_blip_large_DE_finetuned_de_raw'
 
 # Ensure output directory exists
 os.makedirs(output_dir, exist_ok=True)
@@ -42,6 +47,17 @@ def get_visual_embedding_blip(image_path):
     inputs = blip_processor(images=img, return_tensors="pt").to(device)
     vision_outputs = blip_model.vision_model(pixel_values=inputs['pixel_values'], return_dict=True)
     out = vision_outputs.last_hidden_state
+    out = linear_projection(out)
+    return out
+
+vit_model = timm.create_model('vit_large_patch14_reg4_dinov2.lvd142m',pretrained=True,num_classes=0,).to(device)
+vit_model.eval()
+config = resolve_data_config({}, model=vit_model)
+transform = create_transform(**config)
+def get_visual_embedding_vit(image_path):
+    img = Image.open(image_path).convert("RGB")
+    out = vit_model.forward_features(transform(img).unsqueeze(0).to(device))
+    print('out.shape',out.shape)
     out = linear_projection(out)
     return out
 
@@ -76,6 +92,10 @@ def load_and_preprocess_data(split):
                 labels = tokenizer(text, return_tensors="pt", padding="max_length",
                                    max_length=inputs["input_ids"].shape[-1] + visual_embeds.shape[-2])["input_ids"].to(
                     device)
+                if visual_attention_mask.dim() == 1:
+                    visual_attention_mask = visual_attention_mask.unsqueeze(0)
+                # Adjust visual_attention_mask to match the batch size of attention_mask
+                visual_attention_mask = visual_attention_mask.expand(inputs['attention_mask'].size(0), -1)
 
                 inputs.update({
                     "visual_embeds": visual_embeds,
@@ -141,5 +161,5 @@ def load_and_preprocess_data(split):
 
 
 # Process and generate outputs for train, validation, and test sets
-train_outputs = load_and_preprocess_data('valid')
+train_outputs = load_and_preprocess_data('train')
 #generate_and_save_predictions(train_outputs, 'train')

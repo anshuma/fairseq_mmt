@@ -1,7 +1,8 @@
 import torch
 import os
 #output_dir = '../data/VisualBert_DE_vit_base_patch14_reg4_dinov'
-output_dir = '../data/VisualBert_blip_large_DE'
+#output_dir = '../data/VisualBert_blip_large_DE_8June_maxpool'
+output_dir = '../data/VisualBert_blip_large_DE_8June_finetune'
 def load_and_preprocess_data(split):
 
     count = 15

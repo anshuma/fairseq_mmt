@@ -10,7 +10,7 @@ Original file is located at
 # %pip install-r requirements.txt
 
 import torch
-from transformers import VisualBertForQuestionAnswering, BertTokenizer, Trainer, TrainingArguments,VisualBertForPreTraining
+from transformers import VisualBertForQuestionAnswering, BertTokenizer, Trainer, TrainingArguments,VisualBertForPreTraining,BlipProcessor, BlipForConditionalGeneration
 from transformers import AutoImageProcessor, DeiTModel
 from datasets import Dataset, Features, Value, Array3D
 from PIL import Image
@@ -23,11 +23,12 @@ from processing_image import Preprocess
 from modeling_frcnn import GeneralizedRCNN
 from utils import Config
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device =("cpu")
 # load models and model components
 frcnn_cfg = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
 
-frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnn_cfg)
+frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnn_cfg).to(device)
 
 image_preprocess = Preprocess(frcnn_cfg)
 
@@ -41,9 +42,14 @@ def load_data(split):
     try:
         with open(f'{image_idx_dir}/{split}.txt', 'r') as f:
             indices = f.read().splitlines()
-        with open(f'{data_dir}/{split}.en', 'r') as f:
+        with open(f'{data_dir}/{split}.de', 'r') as f:
             captions = f.read().splitlines()
-        data = pd.DataFrame({'index': indices, 'caption': captions})
+        with open(f'{data_dir}/{split}_T5.de', 'r') as f:
+            captions1 = f.read().splitlines()
+        combined_captions = [f"{cap} {cap1}" for cap, cap1 in zip(captions, captions1)]
+        print("combined_captions[0]",combined_captions[0])
+        data = pd.DataFrame({'index': indices, 'caption': combined_captions})
+        #data = pd.DataFrame({'index': indices, 'caption': captions1})
         return data
     except Exception as e:
         print(f"Error loading {split} data: {e}")
@@ -64,6 +70,9 @@ def get_visual_embeddings(image):
 
 def get_visual_embeddings1(image):
     images, sizes, scales_yx = image_preprocess(image)
+    images = images.to(device)
+    sizes = sizes.to(device)
+    scales_yx = scales_yx.to(device)
     #print('images.shape', images.shape)
     output_dict = frcnn(
         images,
@@ -76,8 +85,29 @@ def get_visual_embeddings1(image):
 
     # Very important that the boxes are normalized
     # normalized_boxes = output_dict.get("normalized_boxes")
-    features = output_dict.get("roi_features")
+    features = output_dict.get("roi_features").to(device)
     return features
+
+torch.cuda.empty_cache()
+# Define device as CUDA if available
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Load models and model components
+blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
+blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large").to(device)
+blip_model.eval()
+
+linear_projection = torch.nn.Linear(1024, 2048).to(device)
+
+
+def get_visual_embedding_blip(image_path):
+    img = Image.open(image_path).convert("RGB")
+    inputs = blip_processor(images=img, return_tensors="pt").to(device)
+    vision_outputs = blip_model.vision_model(pixel_values=inputs['pixel_values'], return_dict=True)
+    out = vision_outputs.last_hidden_state
+    print('out.shape',out.shape)
+    out = linear_projection(out)
+    return out
 
 # Initialize tokenizer
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
@@ -87,16 +117,17 @@ def preprocess_data(row):
     #image = Image.open(image_path).convert('RGB')
     #visual_embeds = get_visual_embeddings(image).unsqueeze(0)
     visual_embeds = get_visual_embeddings1([image_path])
-    visual_token_type_ids = torch.ones(visual_embeds.shape[:-1], dtype=torch.long)
-    visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float)
+    #visual_embeds = get_visual_embedding_blip(image_path)
+    visual_token_type_ids = torch.ones(visual_embeds.shape[:-1], dtype=torch.long , device=device)
+    visual_attention_mask = torch.ones(visual_embeds.shape[:-1], dtype=torch.float, device=device)
 
-    inputs = tokenizer(row['caption'], padding='max_length', truncation=True, return_tensors='pt')
+    inputs = tokenizer(row['caption'], padding='max_length', truncation=True, return_tensors='pt').to(device)
     max_length = inputs["input_ids"].shape[-1] + visual_embeds.shape[-2]
     #print('max_length',max_length)
     labels = tokenizer(row['caption'], return_tensors="pt", padding="max_length", max_length=max_length)[
-        "input_ids"].float()
+        "input_ids"].to(device)
     #print('labels.shape',labels.shape)
-    sentence_image_labels = torch.tensor(1).unsqueeze(0)
+    sentence_image_labels = torch.tensor(1).unsqueeze(0).to(device)
     inputs.update({
         "visual_embeds": visual_embeds,
         "visual_token_type_ids": visual_token_type_ids,
@@ -121,14 +152,14 @@ def preprocess_data(row):
 # Load and preprocess datasets
 train_data = load_data('train')
 valid_data = load_data('valid')
-test_data = load_data('test.2016')
+#test_data = load_data('test.2016')
 
 if train_data is not None:
     train_encodings = train_data.apply(preprocess_data, axis=1).tolist()
 if valid_data is not None:
     valid_encodings = valid_data.apply(preprocess_data, axis=1).tolist()
-if test_data is not None:
-    test_encodings = test_data.apply(preprocess_data, axis=1).tolist()
+#if test_data is not None:
+#    test_encodings = test_data.apply(preprocess_data, axis=1).tolist()
 
 # Convert to Hugging Face Dataset
 features = Features({
@@ -149,16 +180,16 @@ def create_dataset(encodings):
 
 train_dataset = create_dataset(train_encodings) if train_data is not None else None
 valid_dataset = create_dataset(valid_encodings) if valid_data is not None else None
-test_dataset = create_dataset(test_encodings) if test_data is not None else None
+#test_dataset = create_dataset(test_encodings) if test_data is not None else None
 
 # Initialize the model
-model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre")
+model = VisualBertForPreTraining.from_pretrained("uclanlp/visualbert-vqa-coco-pre").to(device)
 
 print('started training')
 # Define training arguments
 training_args = TrainingArguments(
     output_dir='./results',
-    num_train_epochs=3,
+    num_train_epochs=5,
     per_device_train_batch_size=8,
     per_device_eval_batch_size=8,
     warmup_steps=500,
@@ -179,9 +210,9 @@ trainer = Trainer(
 if train_dataset is not None:
     trainer.train()
 
-trainer.save_model("./finetuned_model_VisualBERT_large")
-tokenizer.save_pretrained("./finetuned_model_VisualBERT_large")
+trainer.save_model("./finetuned_model_VisualBERT_FRCNN_DE_DE")
+tokenizer.save_pretrained("./finetuned_model_VisualBERT_FRCNN_DE_DE")
 
 # Evaluate the model
-if test_dataset is not None:
-    trainer.evaluate(eval_dataset=test_dataset)
+#if test_dataset is not None:
+#    trainer.evaluate(eval_dataset=test_dataset)
