@@ -10,7 +10,7 @@ image_dir = '../small_dataset/flickr30k/flickr30k-images'
 image_idx_dir = '../small_dataset/flickr30k'
 
 
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration,MBartTokenizer
 import torch
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
@@ -21,6 +21,7 @@ from tqdm import tqdm
 # Load pre-trained model and tokenizer
 processor = BlipProcessor.from_pretrained('Salesforce/blip-image-captioning-base',do_resize=False)
 model = BlipForConditionalGeneration.from_pretrained('Salesforce/blip-image-captioning-base')
+tokenizer = MBartTokenizer.from_pretrained('facebook/mbart-large-50')
 model.train()  # Set the model to training mode
 
 # Move model to GPU if available
@@ -137,14 +138,17 @@ for epoch in range(num_epochs):
     model.train()
     for batch in train_dataloader:
         images, captions = batch
-        inputs = processor(images=images, text=captions, return_tensors="pt", padding=True, truncation=True)
+        inputs = processor(images=images, return_tensors="pt")
         inputs = {key: val.to(device) for key, val in inputs.items()}
-        outputs = model(**inputs, labels=inputs['input_ids'])
+        tokenized_captions = tokenizer(captions, return_tensors="pt", padding=True, truncation=True).to(device)
+        inputs['input_ids'] = tokenized_captions['input_ids']
+        outputs = model(**inputs, labels=tokenized_captions['input_ids'])
         loss = outputs.loss
-        loss.backward()
-        optimizer.step()
-        lr_scheduler.step()
-        optimizer.zero_grad()
+        if loss is not None:
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
 
     print(f"Epoch {epoch+1}/{num_epochs} finished with loss: {loss.item()}")
 
@@ -156,23 +160,25 @@ for epoch in range(num_epochs):
     with torch.no_grad():
         for batch in tqdm(valid_dataloader):
             images, refs = batch
-            inputs = processor(images=images, return_tensors="pt").to(device)
-            generated_ids = model.generate(**inputs, forced_bos_token_id=processor.tokenizer.lang_code_to_id["de"])
-            preds = processor.batch_decode(generated_ids, skip_special_tokens=True)
+            inputs = processor(images=images, return_tensors="pt")
+            inputs = {key: val.to(device) for key, val in inputs.items()}
+            generated_ids = model.generate(**inputs, forced_bos_token_id=tokenizer.lang_code_to_id["de_DE"])
+            preds = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
 
             references.append(refs[0])
             predictions.append(preds[0])
 
     bleu = sacrebleu.corpus_bleu(predictions, [references])
-    print(f"Epoch {epoch+1} Validation BLEU score: {bleu.score}")
+    print(f"Epoch {epoch+1} Validation BLEU score: {bleu.score:.2f}")
 
 # Save the fine-tuned model
 model.save_pretrained('fine-tuned-blip')
 processor.save_pretrained('fine-tuned-blip')
+tokenizer.save_pretrained('fine-tuned-blip-tokenizer')
 
 
 # Evaluation and BLEU score calculation for a test set
-test_dataset = GermanImageCaptionDataset('test',processor)
+test_dataset = GermanImageCaptionDataset('test.2016',processor)
 test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 # Switch model to evaluation mode
@@ -181,16 +187,23 @@ model.eval()
 references = []
 predictions = []
 
-with torch.no_grad():
-    for batch in tqdm(test_dataloader):
-        images, refs = batch
-        inputs = processor(images=images, return_tensors="pt").to(device)
-        generated_ids = model.generate(**inputs, forced_bos_token_id=processor.tokenizer.lang_code_to_id["de"])
-        preds = processor.batch_decode(generated_ids, skip_special_tokens=True)
+with open('predictions.txt', 'w', encoding='utf-8') as f:
+    with torch.no_grad():
+        for batch in tqdm(test_dataloader):
+            images, refs = batch
+            inputs = processor(images=images, return_tensors="pt")
+            inputs = {key: val.to(device) for key, val in inputs.items()}
+            generated_ids = model.generate(**inputs, forced_bos_token_id=tokenizer.lang_code_to_id["de_DE"])
+            preds = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
 
-        references.append(refs[0])
-        predictions.append(preds[0])
+            references.append(refs[0])
+            predictions.append(preds[0])
+            print(f'Reference: {refs[0]}')
+            print(f'Prediction: {preds[0]}')
+            #f.write(f"Reference: {refs[0]}\n")
+            f.write(f"Prediction: {preds[0]}\n")
 
 # Calculate BLEU score
 bleu = sacrebleu.corpus_bleu(predictions, [references])
-print(f"BLEU score: {bleu.score}")
+#print(f"BLEU score: {bleu.score}")
+print(f"BLEU score: {bleu.score:.2f}")
