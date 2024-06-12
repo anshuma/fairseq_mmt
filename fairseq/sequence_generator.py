@@ -123,15 +123,15 @@ class SequenceGenerator(nn.Module):
             self.new_img_order = torch.tensor(_list)
             f.close()
             # load image again for random
-            self.test_image_feats = []
-            self.test_image_feat_masks = []
-            for i in args.image_feat_path:
-                self.test_image_feats.append(torch.load(os.path.join(i, args.gen_subset+'.pth')))
+        self.test_image_feats = []
+        self.test_image_feat_masks = []
+        for i in args.image_feat_path:
+            self.test_image_feats.append(torch.load(os.path.join(i, args.gen_subset + '.pth')))
 
-                if os.path.exists(os.path.join(i, args.gen_subset+'_mask.pth')):
-                    self.test_image_feat_masks.append(torch.load(os.path.join(i, args.gen_subset+'_mask.pth')))
-                else:
-                    self.test_image_feat_masks.append(None)
+            if os.path.exists(os.path.join(i, args.gen_subset + '_mask.pth')):
+                self.test_image_feat_masks.append(torch.load(os.path.join(i, args.gen_subset + '_mask.pth')))
+            else:
+                self.test_image_feat_masks.append(None)
 
     def cuda(self):
         self.model.cuda()
@@ -240,7 +240,7 @@ class SequenceGenerator(nn.Module):
         # Note that src_tokens may have more than 2 dimenions (i.e. audio features)
         bsz, src_len = src_tokens.size()[:2]
         beam_size = self.beam_size
-
+        print('bsz {}, beam_size{}',bsz,beam_size)
         if constraints is not None and not self.search.supports_constraints:
             raise NotImplementedError(
                 "Target-side constraints were provided, but search method doesn't support them"
@@ -281,6 +281,9 @@ class SequenceGenerator(nn.Module):
 
             net_input['img_masks_list'] = img_masks
             net_input['imgs_list'] = imgs
+        else:
+            img_masks = net_input['img_masks_list']
+            imgs=net_input['imgs_list']
 
         encoder_outs = self.model.forward_encoder(net_input)
 
@@ -291,6 +294,7 @@ class SequenceGenerator(nn.Module):
         # ensure encoder_outs is a List.
         assert encoder_outs is not None
 
+        print('bsz {}, beam_size{}', bsz, beam_size)
         # initialize buffers
         scores = (
             torch.zeros(bsz * beam_size, max_len + 1).to(src_tokens).float()
@@ -303,7 +307,8 @@ class SequenceGenerator(nn.Module):
         )  # +2 for eos and pad
         tokens[:, 0] = self.eos if bos_token is None else bos_token
         attn: Optional[Tensor] = None
-
+        print('bsz {}, beam_size{}', bsz, beam_size)
+        print("tokens line 312 sequence_generator.py",tokens.shape)
         # A list that indicates candidates that should be ignored.
         # For example, suppose we're sampling and have already finalized 2/5
         # samples. Then cands_to_ignore would mark 2 positions as being ignored,
@@ -341,7 +346,7 @@ class SequenceGenerator(nn.Module):
 
         for step in range(max_len + 1):  # one extra step for EOS marker
             # reorder decoder internal states based on the prev choice of beams
-            # print(f'step: {step}')
+            print(f'step: {step}')
             if reorder_state is not None:
                 if batch_idxs is not None:
                     # update beam indices to take into account removed sentences
@@ -356,7 +361,8 @@ class SequenceGenerator(nn.Module):
                 encoder_outs = self.model.reorder_encoder_out(
                     encoder_outs, reorder_state
                 )
-
+            print('before model.forward_decoder tokens',tokens.shape)
+            print('encoder_outs.encoder_out', encoder_outs[0].encoder_out.shape)
             lprobs, avg_attn_scores = self.model.forward_decoder(
                 tokens[:, : step + 1],
                 encoder_outs,

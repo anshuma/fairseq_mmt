@@ -40,6 +40,8 @@ class SelectiveAttention(nn.Module):
         Tq, Bq, Cq = query.shape
         Tk, Bk, Ck = key.shape
         Tv, Bv, Cv = value.shape
+        print('Tq{}, Bq{}, Cq{}',Tq, Bq, Cq)
+        print('Tk{}, Bk{}, Ck{}', Tk, Bk, Ck)
         print("Bq {},  Bk{},  Bv{}", Bq, Bk, Bv)
         print("self.qdim {}, self.kdim {}, self.vdim {} ",self.qdim, self.kdim, self.vdim)
         assert Bq == Bk == Bv

@@ -11,6 +11,7 @@ from fairseq import utils
 from fairseq.modules import LayerNorm, MultiheadAttention
 from fairseq.modules.fairseq_dropout import FairseqDropout
 from fairseq.modules.quant_noise import quant_noise
+from fairseq.modules.selective_attention import SelectiveAttention
 from torch import Tensor
 
 
@@ -185,6 +186,29 @@ class TransformerDecoderLayer(nn.Module):
 
         self.cross_self_attention = getattr(args, "cross_self_attention", False)
 
+        # code for image MMT
+        self.selective_attns = nn.ModuleList([])
+        self.selective_attns.extend([SelectiveAttention(qdim=self.embed_dim, kdim=i,
+                                                        vdim=i, attn_dim=self.embed_dim,
+                                                        intermediate_dim=self.embed_dim, output_dim=self.embed_dim,
+                                                        num_heads=1, attn_drop=args.SA_attention_dropout) for i in
+                                     args.image_feat_dim])
+
+        self.gate_denses = nn.ModuleList([])
+        self.gate_denses.extend(
+            [nn.Linear(2 * args.encoder_embed_dim, args.encoder_embed_dim) for i in args.image_feat_dim])
+
+        self.image_dropout_module = FairseqDropout(
+            args.SA_image_dropout, module_name=self.__class__.__name__
+        )
+        self.image_pre_norm_module = nn.Identity()
+        if args.image_pre_norm:
+            self.image_pre_norm_module = nn.LayerNorm(args.image_feat_dim, 1e-5, True)
+
+        self.text_dropout_module = FairseqDropout(
+            args.SA_text_dropout, module_name=self.__class__.__name__
+        )
+
         self.self_attn = self.build_self_attention(
             self.embed_dim,
             args,
@@ -275,9 +299,42 @@ class TransformerDecoderLayer(nn.Module):
     def residual_connection(self, x, residual):
         return residual + x
 
+    def f(self, l, fun='sum'):
+        if fun == 'avg':
+            size = len(l)
+            res = l[0]
+            for i in l[1:]:
+                res = res + i
+            return res / size
+
+        elif fun == 'sum':
+            res = l[0]
+            for i in l[1:]:
+                res = res + i
+            return res
+
+    def fuse_img_feat(self, text, idx, image, image_mask, text_mask):
+        image = self.image_pre_norm_module(image)
+        image = self.image_dropout_module(image)
+        text = self.text_dropout_module(text)
+        output, _map = self.selective_attns[idx](query=text, key=image, value=image,
+                                                 key_padding_mask=image_mask)  # t, b, c
+
+        merge = torch.cat([output, text], dim=-1)
+        gate = torch.sigmoid(self.gate_denses[idx](merge))
+
+        # self.recoder.record_gate(gate.cpu(), text_mask.cpu())
+        # _map = _map[:,:,1:].softmax(dim=-1)
+        # self.recoder.record_map(_map.cpu())
+
+        res = (1 - gate) * text + gate * output
+        return res
+
     def forward(
         self,
         x,
+        img_masks_list:Optional[torch.Tensor] = None,
+        imgs_list:Optional[torch.Tensor] = None,
         encoder_out: Optional[torch.Tensor] = None,
         encoder_padding_mask: Optional[torch.Tensor] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
@@ -301,6 +358,7 @@ class TransformerDecoderLayer(nn.Module):
         Returns:
             encoded output of shape `(seq_len, batch, embed_dim)`
         """
+        print('inside TransformerDecoderLayer 1', flush=True)
         if need_head_weights:
             need_attn = True
 
@@ -356,6 +414,9 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.self_attn_layer_norm(x)
 
+        print('inside TransformerDecoderLayer 2', flush=True)
+        #print('self.encoder_attn', self.encoder_attn, flush=True)
+        #print('encoder_out',encoder_out, flush=True)
         if self.encoder_attn is not None and encoder_out is not None:
             residual = x
             if self.normalize_before:
@@ -381,6 +442,26 @@ class TransformerDecoderLayer(nn.Module):
                 need_weights=need_attn or (not self.training and self.need_attn),
                 need_head_weights=need_head_weights,
             )
+            print('inside TransformerDecoderLayer 3', flush=True)
+            xs = []
+            idx = 0
+            print('x',x.shape)
+            # if imgs_list is not None:
+            #     for img, img_mask in zip(imgs_list, img_masks_list):
+            #         print('img.shape', img.shape)
+            #         '''
+            #         M, N, O = img.shape
+            #         if N > O:
+            #             img = img[:, :O, :]
+            #         else:
+            #             img = img[:, :, :N]
+            #         '''
+            #         img = img.unsqueeze(1)
+            #         print('img.shape', img.shape)
+            #         img = img.transpose(0, 1)
+            #         xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=None))
+            #         idx += 1
+            #     x = self.f(xs, fun='sum')
             x = self.dropout_module(x)
             x = self.residual_connection(x, residual)
             if not self.normalize_before:
