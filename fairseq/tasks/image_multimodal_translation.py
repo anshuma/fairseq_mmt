@@ -3,7 +3,7 @@ import json
 import logging
 import os
 from argparse import Namespace
-
+from time import sleep
 import numpy as np
 from fairseq import metrics, options, utils
 from fairseq.data import (
@@ -56,7 +56,8 @@ def load_langpair_dataset(
 
     src_datasets = []
     tgt_datasets = []
-
+    synth_tgt_datasets = []
+    sleep(10)
     for k in itertools.count():
         split_k = split + (str(k) if k > 0 else "")
 
@@ -91,6 +92,13 @@ def load_langpair_dataset(
         )
         if tgt_dataset is not None:
             tgt_datasets.append(tgt_dataset)
+        
+        synth_prefix = os.path.join("translated-data-bin/multi30k.en-de", "{}.{}-{}.".format(split_k, src, tgt))
+        synth_tgt_dataset = data_utils.load_indexed_dataset(
+            synth_prefix + tgt, tgt_dict, dataset_impl
+        )
+        if synth_tgt_dataset is not None:
+            synth_tgt_datasets.append(tgt_dataset)
 
         logger.info(
             "{} {} {}-{} {} examples".format(
@@ -106,6 +114,7 @@ def load_langpair_dataset(
     if len(src_datasets) == 1:
         src_dataset = src_datasets[0]
         tgt_dataset = tgt_datasets[0] if len(tgt_datasets) > 0 else None
+        synth_tgt_dataset = synth_tgt_datasets[0] if len(synth_tgt_datasets) > 0 else None
     else:
         sample_ratios = [1] * len(src_datasets)
         sample_ratios[0] = upsample_primary
@@ -114,12 +123,18 @@ def load_langpair_dataset(
             tgt_dataset = ConcatDataset(tgt_datasets, sample_ratios)
         else:
             tgt_dataset = None
+        if len(synth_tgt_datasets) > 0:
+            synth_tgt_dataset = ConcatDataset(synth_tgt_datasets, sample_ratios)
+        else:
+            synth_tgt_dataset = None
 
     if prepend_bos:
         assert hasattr(src_dict, "bos_index") and hasattr(tgt_dict, "bos_index")
         src_dataset = PrependTokenDataset(src_dataset, src_dict.bos())
         if tgt_dataset is not None:
             tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
+        if synth_tgt_dataset is not None:
+            synth_tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
 
     eos = None
     if append_source_id:
@@ -131,6 +146,10 @@ def load_langpair_dataset(
                 tgt_dataset, tgt_dict.index("[{}]".format(tgt))
             )
         eos = tgt_dict.index("[{}]".format(tgt))
+        if synth_tgt_dataset is not None:
+            synth_tgt_dataset = AppendTokenDataset(
+                synth_tgt_dataset, tgt_dict.index("[{}]".format(tgt))
+            )
 
     align_dataset = None
     if load_alignments:
@@ -154,12 +173,16 @@ def load_langpair_dataset(
         img_dataset_list.append(img_dataset)
     
     tgt_dataset_sizes = tgt_dataset.sizes if tgt_dataset is not None else None
+    synth_tgt_dataset_sizes = synth_tgt_dataset.sizes if synth_tgt_dataset is not None else None
     
     return ImageLanguagePairDataset(
         src_dataset,
         src_dataset.sizes,
         src_dict,
         img_dataset_list,
+        synth_tgt_dataset,
+        synth_tgt_dataset_sizes,
+        tgt_dict,
         tgt_dataset,
         tgt_dataset_sizes,
         tgt_dict,

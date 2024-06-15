@@ -268,6 +268,7 @@ class TransformerModel(FairseqEncoderDecoderModel):
         src_tokens,
         src_lengths,
         prev_output_tokens,
+        synth_target_tokens,
         imgs_list,
         img_masks_list,
         return_all_hiddens: bool = True,
@@ -281,13 +282,18 @@ class TransformerModel(FairseqEncoderDecoderModel):
         Copied from the base class, but without ``**kwargs``,
         which are not supported by TorchScript.
         """
-        encoder_out = self.encoder(
+        encoder_out1 = self.encoder(
             src_tokens, src_lengths=src_lengths, return_all_hiddens=return_all_hiddens,
             img_masks_list=img_masks_list, imgs_list=imgs_list,
         )
+        encoder_out2 = self.encoder(
+            synth_target_tokens, src_lengths=src_lengths, return_all_hiddens=return_all_hiddens,
+            img_masks_list=img_masks_list, imgs_list=None,
+        )
         decoder_out = self.decoder(
             prev_output_tokens,
-            encoder_out=encoder_out,
+            encoder_out1=encoder_out1,
+            encoder_out2=encoder_out2,
             features_only=features_only,
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
@@ -498,17 +504,20 @@ class TransformerEncoder(FairseqEncoder):
         encoder_states = [] if return_all_hiddens else None
         xs = []
         idx = 0
-        print('len of imgs_list', len(imgs_list))
-        if not self.is_fusion_top:
+        print('self.is_fusion_top',self.is_fusion_top)
+        if not self.is_fusion_top and imgs_list is not None:
+            print('len of imgs_list', len(imgs_list))
             for img, img_mask in zip(imgs_list, img_masks_list):
                 print('img.shape',img.shape)
+                '''
                 M, N, O = img.shape
                 if N > O:
                     img = img[:, :O, :]
                 else:
                     img = img[:, :, :N]
                 print('img.shape',img.shape)
-                #img = img.unsqueeze(1)
+                '''
+                img = img.unsqueeze(1)
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
@@ -524,14 +533,17 @@ class TransformerEncoder(FairseqEncoder):
         if self.layer_norm is not None:
             x = self.layer_norm(x)
 
-        if self.is_fusion_top:
+        if self.is_fusion_top and imgs_list is not None:
+            print('len of imgs_list', len(imgs_list))
             for img, img_mask in zip(imgs_list, img_masks_list):
                 print('img.shape',img.shape)
+                '''
                 M, N, O = img.shape
                 if N > O:
                     img = img[:, :O, :]
                 else:
                     img = img[:, :, :N]
+                '''
                 img = img.unsqueeze(1)
                 print('img.shape',img.shape)
                 img = img.transpose(0, 1)
@@ -766,7 +778,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
     def forward(
         self,
         prev_output_tokens,
-        encoder_out: Optional[EncoderOut] = None,
+        encoder_out1: Optional[EncoderOut] = None,
+        encoder_out2: Optional[EncoderOut] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         features_only: bool = False,
         full_context_alignment: bool = False,
@@ -795,7 +808,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
         """
         x, extra = self.extract_features(
             prev_output_tokens,
-            encoder_out=encoder_out,
+            encoder_out1=encoder_out1,
+            encoder_out2=encoder_out2,
             incremental_state=incremental_state,
             full_context_alignment=full_context_alignment,
             alignment_layer=alignment_layer,
@@ -808,7 +822,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
     def extract_features(
         self,
         prev_output_tokens,
-        encoder_out: Optional[EncoderOut] = None,
+        encoder_out1: Optional[EncoderOut] = None,
+        encoder_out2: Optional[EncoderOut] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
@@ -816,7 +831,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
     ):
         return self.extract_features_scriptable(
             prev_output_tokens,
-            encoder_out,
+            encoder_out1,
+            encoder_out2,
             incremental_state,
             full_context_alignment,
             alignment_layer,
@@ -832,7 +848,8 @@ class TransformerDecoder(FairseqIncrementalDecoder):
     def extract_features_scriptable(
         self,
         prev_output_tokens,
-        encoder_out: Optional[EncoderOut] = None,
+        encoder_out1: Optional[EncoderOut] = None,
+        encoder_out2: Optional[EncoderOut] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
@@ -909,8 +926,10 @@ class TransformerDecoder(FairseqIncrementalDecoder):
 
             x, layer_attn, _ = layer(
                 x,
-                encoder_out.encoder_out if encoder_out is not None else None,
-                encoder_out.encoder_padding_mask if encoder_out is not None else None,
+                encoder_out1.encoder_out if encoder_out1 is not None else None,
+                encoder_out1.encoder_padding_mask if encoder_out1 is not None else None,
+                encoder_out2.encoder_out if encoder_out2 is not None else None,
+                encoder_out2.encoder_padding_mask if encoder_out2 is not None else None,
                 incremental_state,
                 self_attn_mask=self_attn_mask,
                 self_attn_padding_mask=self_attn_padding_mask,
@@ -1088,7 +1107,7 @@ def image_multimodal_transformer_SA_top(args):
 
     # args for image MMT
     #args.is_fusion_top = getattr(args, 'is_fusion_top', True)
-    args.is_fusion_top = False
+    args.is_fusion_top = True
 
     base_architecture(args)
 

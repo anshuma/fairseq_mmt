@@ -53,7 +53,31 @@ class FairseqEncoder(nn.Module):
             )
         else:
             return self.forward_non_torchscript(net_input)
+    
+    def forward_synth_torchscript(self, net_input: Dict[str, Tensor]):
+        """A TorchScript-compatible version of forward.
 
+        Encoders which use additional arguments may want to override
+        this method for TorchScript compatibility.
+        """
+        if torch.jit.is_scripting():
+            return self.forward(
+                src_tokens=net_input["synth_target_tokens"],
+                src_lengths=net_input["src_lengths"],
+                imgs_list=None,
+                img_masks_list=None,
+            )
+        else:
+            return self.forward_synth_non_torchscript(net_input)
+
+    @torch.jit.unused
+    def forward_synth_non_torchscript(self, net_input: Dict[str, Tensor]):
+        return self.forward(
+                src_tokens=net_input["prev_output_tokens"],
+                src_lengths=net_input["src_lengths"],
+                imgs_list=None,
+                img_masks_list=None,)
+    
     @torch.jit.unused
     def forward_non_torchscript(self, net_input: Dict[str, Tensor]):
         encoder_input = {

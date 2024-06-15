@@ -19,8 +19,8 @@ random_image_translation=0 #1
 length_penalty=0.8
 
 # set tag
-#model_dir_tag=$image_feat/$image_feat-$mask_data
-model_dir_tag=$image_feat/$image_feat-$mask_data_notFusionTop
+model_dir_tag=$image_feat/$image_feat-$mask_data
+#model_dir_tag=$image_feat/$image_feat-$mask_data_notFusionTop
 
 if [ $task == "multi30k-en2de" ]; then
 	tgt_lang=de
@@ -79,8 +79,8 @@ fi
 #image_feat_path=data/VisualBert_blip_large_DE_8June
 #image_feat_path=data/VisualBert_blip_large_DE_8June_avgpool
 #image_feat_path=data/VisualBert_blip_large_DE_8June_maxpool
-image_feat_path=data/VisualBert_blip_large_DE_8June_finetune
-image_feat_dim=768
+#image_feat_path=data/VisualBert_blip_large_DE_8June_finetune
+#image_feat_dim=768
 # data set
 ensemble=10
 batch_size=128
@@ -99,7 +99,8 @@ src_lang=en
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_8June_avgpool/
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_8June_maxpool/
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_fusiontop
-model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_finetune
+#model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_finetune
+model_dir=checkpoints/multi30k-en2de/vit_base_patch16_384/vit_base_patch16_384-mask0/
 checkpoint=checkpoint_best.pt
 
 if [ -n "$ensemble" ]; then
@@ -111,6 +112,7 @@ fi
 output=$model_dir/translation_$who.log
 
 export CUDA_VISIBLE_DEVICES=$gpu
+
 
 cmd="fairseq-generate data-bin/$data_dir 
   -s $src_lang -t $tgt_lang 

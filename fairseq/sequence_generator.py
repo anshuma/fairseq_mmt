@@ -282,15 +282,16 @@ class SequenceGenerator(nn.Module):
             net_input['img_masks_list'] = img_masks
             net_input['imgs_list'] = imgs
 
-        encoder_outs = self.model.forward_encoder(net_input)
-
+        encoder_outs1 = self.model.forward_encoder(net_input)
+        encoder_outs2 = self.model.forward_encoder_for_synth(net_input)
         # placeholder of indices for bsz * beam_size to hold tokens and accumulative scores
         new_order = torch.arange(bsz).view(-1, 1).repeat(1, beam_size).view(-1)
         new_order = new_order.to(src_tokens.device).long()
-        encoder_outs = self.model.reorder_encoder_out(encoder_outs, new_order)
+        encoder_outs1 = self.model.reorder_encoder_out(encoder_outs1, new_order)
         # ensure encoder_outs is a List.
-        assert encoder_outs is not None
-
+        assert encoder_outs1 is not None
+        encoder_outs2 = self.model.reorder_encoder_out(encoder_outs2, new_order)
+        assert encoder_outs2 is not None
         # initialize buffers
         scores = (
             torch.zeros(bsz * beam_size, max_len + 1).to(src_tokens).float()
@@ -353,13 +354,17 @@ class SequenceGenerator(nn.Module):
                     )
                     original_batch_idxs = original_batch_idxs[batch_idxs]
                 self.model.reorder_incremental_state(incremental_states, reorder_state)
-                encoder_outs = self.model.reorder_encoder_out(
-                    encoder_outs, reorder_state
+                encoder_outs1 = self.model.reorder_encoder_out(
+                    encoder_outs1, reorder_state
+                )
+                encoder_outs2 = self.model.reorder_encoder_out(
+                    encoder_outs2, reorder_state
                 )
 
             lprobs, avg_attn_scores = self.model.forward_decoder(
                 tokens[:, : step + 1],
-                encoder_outs,
+                encoder_outs1,
+                encoder_outs2,
                 incremental_states,
                 self.temperature,
             )
@@ -852,30 +857,39 @@ class EnsembleModel(nn.Module):
         if not self.has_encoder():
             return None
         return [model.encoder.forward_torchscript(net_input) for model in self.models]
+    
+    def forward_encoder_for_synth(self, net_input: Dict[str, Tensor]):
+        if not self.has_encoder():
+            return None
+        return [model.encoder.forward_synth_torchscript(net_input) for model in self.models]
 
     @torch.jit.export
     def forward_decoder(
         self,
         tokens,
-        encoder_outs: List[EncoderOut],
+        encoder_outs1: List[EncoderOut],
+        encoder_outs2: List[EncoderOut],
         incremental_states: List[Dict[str, Dict[str, Optional[Tensor]]]],
         temperature: float = 1.0,
     ):
         log_probs = []
         avg_attn: Optional[Tensor] = None
-        encoder_out: Optional[EncoderOut] = None
+        encoder_out1: Optional[EncoderOut] = None
+        encoder_out2: Optional[EncoderOut] = None
         for i, model in enumerate(self.models):
             if self.has_encoder():
-                encoder_out = encoder_outs[i]
+                encoder_out1 = encoder_outs1[i]
+                encoder_out1 = encoder_outs2[i]
             # decode each model
             if self.has_incremental_states():
                 decoder_out = model.decoder.forward(
                     tokens,
-                    encoder_out=encoder_out,
+                    encoder_out1=encoder_out1,
+                    encoder_out2=encoder_out2,
                     incremental_state=incremental_states[i],
                 )
             else:
-                decoder_out = model.decoder.forward(tokens, encoder_out=encoder_out)
+                decoder_out = model.decoder.forward(tokens, encoder_out1=encoder_out1,encoder_out2=encoder_out2)
 
             attn: Optional[Tensor] = None
             decoder_len = len(decoder_out)

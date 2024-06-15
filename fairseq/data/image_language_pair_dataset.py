@@ -138,6 +138,22 @@ def collate(
     else:
         ntokens = src_lengths.sum().item()
 
+    synth_target=None
+    if samples[0].get("synth_target", None) is not None:
+        synth_target = merge(
+            "synth_target",
+            left_pad=left_pad_target,
+            pad_to_length=pad_to_length["synth_target"]
+            if pad_to_length is not None
+            else None,
+        )
+        synth_target = synth_target.index_select(0, sort_order)
+        synth_tgt_lengths = torch.LongTensor(
+            [s["synth_target"].ne(pad_idx).long().sum() for s in samples]
+        ).index_select(0, sort_order)
+        ntokens = synth_tgt_lengths.sum().item()
+
+
     batch = {
         "id": id,
         "nsentences": len(samples),
@@ -147,6 +163,7 @@ def collate(
             "src_lengths": src_lengths,
             "imgs_list": imgs_list,               #
             "img_masks_list": img_masks_list,     #
+            "synth_target_tokens":synth_target
         },
         "target": target,
     }
@@ -204,6 +221,9 @@ class ImageLanguagePairDataset(FairseqDataset):
         src_sizes (List[int]): source sentence lengths
         src_dict (~fairseq.data.Dictionary): source vocabulary
         imgs (ImageDataset): list for image dataset
+        synth_tgt (torch.utils.data.Dataset, optional): target dataset to wrap
+        synth_tgt_sizes (List[int], optional): target sentence lengths
+        synth_tgt_tgt_dict (~fairseq.data.Dictionary, optional): target vocabulary
         tgt (torch.utils.data.Dataset, optional): target dataset to wrap
         tgt_sizes (List[int], optional): target sentence lengths
         tgt_dict (~fairseq.data.Dictionary, optional): target vocabulary
@@ -241,6 +261,9 @@ class ImageLanguagePairDataset(FairseqDataset):
         src_sizes,
         src_dict,
         imgs,
+        synth_tgt=None,
+        synth_tgt_sizes=None,
+        synth_tgt_dict=None,
         tgt=None,
         tgt_sizes=None,
         tgt_dict=None,
@@ -269,14 +292,17 @@ class ImageLanguagePairDataset(FairseqDataset):
             ), "Source and target must contain the same number of examples"
         self.src = src
         self.tgt = tgt
+        self.synth_tgt = synth_tgt
         self.src_sizes = np.array(src_sizes)
         self.tgt_sizes = np.array(tgt_sizes) if tgt_sizes is not None else None
+        self.synth_tgt_sizes = np.array(tgt_sizes) if tgt_sizes is not None else None
         self.sizes = (
             np.vstack((self.src_sizes, self.tgt_sizes)).T
             if self.tgt_sizes is not None
             else self.src_sizes
         )
         self.src_dict = src_dict
+        self.synth_tgt_dict = synth_tgt_dict
         self.tgt_dict = tgt_dict
         self.left_pad_source = left_pad_source
         self.left_pad_target = left_pad_target
@@ -306,6 +332,18 @@ class ImageLanguagePairDataset(FairseqDataset):
             )
             self.src_sizes = self.src.sizes
             logger.info("bucketing source lengths: {}".format(list(self.src.buckets)))
+            if self.synth_tgt is not None:
+                self.synth_tgt = BucketPadLengthDataset(
+                    self.synth_tgt,
+                    sizes=self.synth_tgt_sizes,
+                    num_buckets=num_buckets,
+                    pad_idx=self.synth_tgt_dict.pad(),
+                    left_pad=self.left_pad_target,
+                )
+                self.synth_tgt_sizes = self.synth_tgt.sizes
+                logger.info(
+                    "bucketing synth target lengths: {}".format(list(self.synth_tgt.buckets))
+                )
             if self.tgt is not None:
                 self.tgt = BucketPadLengthDataset(
                     self.tgt,
@@ -335,6 +373,7 @@ class ImageLanguagePairDataset(FairseqDataset):
         return self.buckets
 
     def __getitem__(self, index):
+        synth_tgt_item = self.synth_tgt[index] if self.synth_tgt is not None else None
         tgt_item = self.tgt[index] if self.tgt is not None else None
         src_item = self.src[index]
 
@@ -347,11 +386,15 @@ class ImageLanguagePairDataset(FairseqDataset):
         # use tgt_dataset as src_dataset and vice versa
         if self.append_eos_to_target:
             eos = self.tgt_dict.eos() if self.tgt_dict else self.src_dict.eos()
+            if self.synth_tgt and self.synth_tgt[index][-1] != eos:
+                synth_tgt_item = torch.cat([self.synth_tgt[index], torch.LongTensor([eos])])
             if self.tgt and self.tgt[index][-1] != eos:
                 tgt_item = torch.cat([self.tgt[index], torch.LongTensor([eos])])
 
         if self.append_bos:
             bos = self.tgt_dict.bos() if self.tgt_dict else self.src_dict.bos()
+            if self.synth_tgt and self.synth_tgt[index][-1] != bos:
+                synth_tgt_item = torch.cat([self.synth_tgt[index], torch.LongTensor([bos])])
             if self.tgt and self.tgt[index][0] != bos:
                 tgt_item = torch.cat([torch.LongTensor([bos]), self.tgt[index]])
 
@@ -367,6 +410,7 @@ class ImageLanguagePairDataset(FairseqDataset):
         example = {
             "id": index,
             "source": src_item,
+            "synth_target":synth_tgt_item,
             "target": tgt_item,
             "img_list": img_item,
             "img_mask_list": img_mask_item,
@@ -485,6 +529,7 @@ class ImageLanguagePairDataset(FairseqDataset):
 
     def prefetch(self, indices):
         self.src.prefetch(indices)
+        self.synth_tgt.prefetch(indices)
         if self.tgt is not None:
             self.tgt.prefetch(indices)
         if self.align_dataset is not None:

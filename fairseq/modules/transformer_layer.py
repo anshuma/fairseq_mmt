@@ -102,11 +102,11 @@ class TransformerEncoderLayer(nn.Module):
                     state_dict["{}.{}.{}".format(name, new, m)] = state_dict[k]
                     del state_dict[k]
 
-    def forward(self, x, encoder_padding_mask, attn_mask: Optional[Tensor] = None):
+    def forward(self, x, encoder_padding_mask1, attn_mask: Optional[Tensor] = None):
         """
         Args:
             x (Tensor): input to the layer of shape `(seq_len, batch, embed_dim)`
-            encoder_padding_mask (ByteTensor): binary ByteTensor of shape
+            encoder_padding_mask1 (ByteTensor): binary ByteTensor of shape
                 `(batch, seq_len)` where padding elements are indicated by ``1``.
             attn_mask (ByteTensor): binary tensor of shape `(tgt_len, src_len)`,
                 where `tgt_len` is the length of output and `src_len` is the
@@ -133,7 +133,7 @@ class TransformerEncoderLayer(nn.Module):
             query=x,
             key=x,
             value=x,
-            key_padding_mask=encoder_padding_mask,
+            key_padding_mask=encoder_padding_mask1,
             attn_mask=attn_mask,
         )
         x = self.dropout_module(x)
@@ -278,8 +278,10 @@ class TransformerDecoderLayer(nn.Module):
     def forward(
         self,
         x,
-        encoder_out: Optional[torch.Tensor] = None,
-        encoder_padding_mask: Optional[torch.Tensor] = None,
+        encoder_out1: Optional[torch.Tensor] = None,
+        encoder_padding_mask1: Optional[torch.Tensor] = None,
+        encoder_out2: Optional[torch.Tensor] = None,
+        encoder_padding_mask2: Optional[torch.Tensor] = None,
         incremental_state: Optional[Dict[str, Dict[str, Optional[Tensor]]]] = None,
         prev_self_attn_state: Optional[List[torch.Tensor]] = None,
         prev_attn_state: Optional[List[torch.Tensor]] = None,
@@ -291,7 +293,7 @@ class TransformerDecoderLayer(nn.Module):
         """
         Args:
             x (Tensor): input to the layer of shape `(seq_len, batch, embed_dim)`
-            encoder_padding_mask (ByteTensor, optional): binary
+            encoder_padding_mask1 (ByteTensor, optional): binary
                 ByteTensor of shape `(batch, src_len)` where padding
                 elements are indicated by ``1``.
             need_attn (bool, optional): return attention weights
@@ -318,27 +320,28 @@ class TransformerDecoderLayer(nn.Module):
             assert incremental_state is not None
             self.self_attn._set_input_buffer(incremental_state, saved_state)
         _self_attn_input_buffer = self.self_attn._get_input_buffer(incremental_state)
+        print('anshuma: cross_self_attention', self.cross_self_attention)
         if self.cross_self_attention and not (
             incremental_state is not None
             and _self_attn_input_buffer is not None
             and "prev_key" in _self_attn_input_buffer
         ):
             if self_attn_mask is not None:
-                assert encoder_out is not None
+                assert encoder_out1 is not None
                 self_attn_mask = torch.cat(
-                    (x.new_zeros(x.size(0), encoder_out.size(0)), self_attn_mask), dim=1
+                    (x.new_zeros(x.size(0), encoder_out1.size(0)), self_attn_mask), dim=1
                 )
             if self_attn_padding_mask is not None:
-                if encoder_padding_mask is None:
-                    assert encoder_out is not None
-                    encoder_padding_mask = self_attn_padding_mask.new_zeros(
-                        encoder_out.size(1), encoder_out.size(0)
+                if encoder_padding_mask1 is None:
+                    assert encoder_out1 is not None
+                    encoder_padding_mask1 = self_attn_padding_mask.new_zeros(
+                        encoder_out1.size(1), encoder_out1.size(0)
                     )
                 self_attn_padding_mask = torch.cat(
-                    (encoder_padding_mask, self_attn_padding_mask), dim=1
+                    (encoder_padding_mask1, self_attn_padding_mask), dim=1
                 )
-            assert encoder_out is not None
-            y = torch.cat((encoder_out, x), dim=0)
+            assert encoder_out1 is not None
+            y = torch.cat((encoder_out1, x), dim=0)
         else:
             y = x
 
@@ -356,7 +359,7 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.self_attn_layer_norm(x)
 
-        if self.encoder_attn is not None and encoder_out is not None:
+        if self.encoder_attn is not None and encoder_out1 is not None:
             residual = x
             if self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
@@ -373,9 +376,9 @@ class TransformerDecoderLayer(nn.Module):
 
             x, attn = self.encoder_attn(
                 query=x,
-                key=encoder_out,
-                value=encoder_out,
-                key_padding_mask=encoder_padding_mask,
+                key=encoder_out1,
+                value=encoder_out1,
+                key_padding_mask=encoder_padding_mask1,
                 incremental_state=incremental_state,
                 static_kv=True,
                 need_weights=need_attn or (not self.training and self.need_attn),
@@ -386,6 +389,35 @@ class TransformerDecoderLayer(nn.Module):
             if not self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
 
+            residual = x
+            if self.normalize_before:
+                x = self.encoder_attn_layer_norm(x)
+            if prev_attn_state is not None:
+                prev_key, prev_value = prev_attn_state[:2]
+                saved_state: Dict[str, Optional[Tensor]] = {
+                    "prev_key": prev_key,
+                    "prev_value": prev_value,
+                }
+                if len(prev_attn_state) >= 3:
+                    saved_state["prev_key_padding_mask"] = prev_attn_state[2]
+                assert incremental_state is not None
+                self.encoder_attn._set_input_buffer(incremental_state, saved_state)
+
+            x, attn = self.encoder_attn(
+                query=x,
+                key=encoder_out2,
+                value=encoder_out2,
+                key_padding_mask=encoder_padding_mask2,
+                incremental_state=incremental_state,
+                static_kv=True,
+                need_weights=need_attn or (not self.training and self.need_attn),
+                need_head_weights=need_head_weights,
+            )
+            x = self.dropout_module(x)
+            x = self.residual_connection(x, residual)
+            if not self.normalize_before:
+                x = self.encoder_attn_layer_norm(x)
+            
         residual = x
         if self.normalize_before:
             x = self.final_layer_norm(x)
@@ -408,7 +440,7 @@ class TransformerDecoderLayer(nn.Module):
                 ]
             else:
                 self_attn_state = [saved_state["prev_key"], saved_state["prev_value"]]
-            return x, attn, self_attn_state
+            return x, attn1, attn2, self_attn_state
         return x, attn, None
 
     def make_generation_fast_(self, need_attn: bool = False, **kwargs):
