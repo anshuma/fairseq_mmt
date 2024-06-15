@@ -73,7 +73,7 @@ class FairseqEncoder(nn.Module):
     @torch.jit.unused
     def forward_synth_non_torchscript(self, net_input: Dict[str, Tensor]):
         return self.forward(
-                src_tokens=net_input["prev_output_tokens"],
+                src_tokens=net_input["synth_target_tokens"],
                 src_lengths=net_input["src_lengths"],
                 imgs_list=None,
                 img_masks_list=None,)
@@ -81,7 +81,7 @@ class FairseqEncoder(nn.Module):
     @torch.jit.unused
     def forward_non_torchscript(self, net_input: Dict[str, Tensor]):
         encoder_input = {
-            k: v for k, v in net_input.items() if k != "prev_output_tokens"
+            k: v for k, v in net_input.items() if (k != "prev_output_tokens" and k != "synth_target_tokens")
         }
         return self.forward(**encoder_input)
 

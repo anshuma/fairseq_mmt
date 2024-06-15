@@ -5,6 +5,7 @@ import os
 from argparse import Namespace
 from time import sleep
 import numpy as np
+from time import sleep
 from fairseq import metrics, options, utils
 from fairseq.data import (
     AppendTokenDataset,
@@ -32,6 +33,7 @@ def load_langpair_dataset(
     split,
     src,
     src_dict,
+    synth_tgt_dict,
     tgt,
     tgt_dict,
     combine,
@@ -94,8 +96,9 @@ def load_langpair_dataset(
             tgt_datasets.append(tgt_dataset)
         
         synth_prefix = os.path.join("translated-data-bin/multi30k.en-de", "{}.{}-{}.".format(split_k, src, tgt))
+        print('synth_prefix {} for split{}', synth_prefix, split)
         synth_tgt_dataset = data_utils.load_indexed_dataset(
-            synth_prefix + tgt, tgt_dict, dataset_impl
+            synth_prefix + tgt, synth_tgt_dict, dataset_impl
         )
         if synth_tgt_dataset is not None:
             synth_tgt_datasets.append(tgt_dataset)
@@ -134,7 +137,7 @@ def load_langpair_dataset(
         if tgt_dataset is not None:
             tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
         if synth_tgt_dataset is not None:
-            synth_tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
+            synth_tgt_dataset = PrependTokenDataset(tgt_dataset, synth_tgt_dict.bos())
 
     eos = None
     if append_source_id:
@@ -148,7 +151,7 @@ def load_langpair_dataset(
         eos = tgt_dict.index("[{}]".format(tgt))
         if synth_tgt_dataset is not None:
             synth_tgt_dataset = AppendTokenDataset(
-                synth_tgt_dataset, tgt_dict.index("[{}]".format(tgt))
+                synth_tgt_dataset, synth_tgt_dict.index("[{}]".format(tgt))
             )
 
     align_dataset = None
@@ -182,7 +185,7 @@ def load_langpair_dataset(
         img_dataset_list,
         synth_tgt_dataset,
         synth_tgt_dataset_sizes,
-        tgt_dict,
+        synth_tgt_dict,
         tgt_dataset,
         tgt_dataset_sizes,
         tgt_dict,
@@ -274,10 +277,12 @@ class ImageMMTTask(LegacyFairseqTask):
         parser.add_argument('--image-feat-dim', nargs='+', type=int,
                             help='image features dimension')
 
-    def __init__(self, args, src_dict, tgt_dict):
+    def __init__(self, args, src_dict, tgt_dict, synth_tgt_dict):
+        sleep(20)
         super().__init__(args)
         self.src_dict = src_dict
         self.tgt_dict = tgt_dict
+        self.synth_tgt_dict = synth_tgt_dict
 
     @classmethod
     def setup_task(cls, args, **kwargs):
@@ -286,6 +291,7 @@ class ImageMMTTask(LegacyFairseqTask):
         Args:
             args (argparse.Namespace): parsed command-line arguments
         """
+        sleep(20)
         args.left_pad_source = utils.eval_bool(args.left_pad_source)
         args.left_pad_target = utils.eval_bool(args.left_pad_target)
 
@@ -308,13 +314,16 @@ class ImageMMTTask(LegacyFairseqTask):
         tgt_dict = cls.load_dictionary(
             os.path.join(paths[0], "dict.{}.txt".format(args.target_lang))
         )
+        synth_tgt_dict = cls.load_dictionary(
+            os.path.join('translated-data-bin/multi30k.en-de', "dict.{}.txt".format(args.target_lang))
+        )
         assert src_dict.pad() == tgt_dict.pad()
         assert src_dict.eos() == tgt_dict.eos()
         assert src_dict.unk() == tgt_dict.unk()
         logger.info("[{}] dictionary: {} types".format(args.source_lang, len(src_dict)))
         logger.info("[{}] dictionary: {} types".format(args.target_lang, len(tgt_dict)))
 
-        return cls(args, src_dict, tgt_dict)
+        return cls(args, src_dict, tgt_dict, synth_tgt_dict)
 
     def load_dataset(self, split, epoch=1, combine=False, **kwargs):
         """Load a given dataset split.
@@ -337,6 +346,7 @@ class ImageMMTTask(LegacyFairseqTask):
             split,
             src,
             self.src_dict,
+            self.synth_tgt_dict,
             tgt,
             self.tgt_dict,
             combine=combine,
