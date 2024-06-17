@@ -217,6 +217,7 @@ class TransformerDecoderLayer(nn.Module):
             self.encoder_attn_layer_norm = None
         else:
             self.encoder_attn = self.build_encoder_attention(self.embed_dim, args)
+            self.encoder_combine_attention = self.build_encoder_combine_attention(args)
             self.encoder_attn_layer_norm = LayerNorm(self.embed_dim, export=export)
 
         self.fc1 = self.build_fc1(
@@ -269,6 +270,17 @@ class TransformerDecoderLayer(nn.Module):
             qn_block_size=self.quant_noise_block_size,
         )
 
+    def build_encoder_combine_attention(self,args):
+        return MultiheadAttention(
+            getattr(args, "encoder_embed_dim", None),
+            args.decoder_attention_heads,
+            kdim=getattr(args, "encoder_embed_dim", None),
+            vdim=getattr(args, "encoder_embed_dim", None),
+            dropout=args.attention_dropout,
+            encoder_decoder_attention=True,
+            q_noise=self.quant_noise,
+            qn_block_size=self.quant_noise_block_size,
+        )
     def prepare_for_onnx_export_(self):
         self.onnx_trace = True
 
@@ -360,6 +372,16 @@ class TransformerDecoderLayer(nn.Module):
             x = self.self_attn_layer_norm(x)
 
         if self.encoder_attn is not None and encoder_out1 is not None:
+            encoder_out = self.encoder_combine_attention(
+                query=encoder_out1,
+                key=encoder_out2,
+                value=encoder_out2,
+                key_padding_mask=encoder_padding_mask2,
+                incremental_state=incremental_state,
+                static_kv=True,
+                need_weights=need_attn or (not self.training and self.need_attn),
+                need_head_weights=need_head_weights,
+            )
             residual = x
             if self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
@@ -376,8 +398,8 @@ class TransformerDecoderLayer(nn.Module):
 
             x, attn = self.encoder_attn(
                 query=x,
-                key=encoder_out1,
-                value=encoder_out1,
+                key=encoder_out[0],
+                value=encoder_out[0],
                 key_padding_mask=encoder_padding_mask1,
                 incremental_state=incremental_state,
                 static_kv=True,
@@ -388,7 +410,7 @@ class TransformerDecoderLayer(nn.Module):
             x = self.residual_connection(x, residual)
             if not self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
-
+            '''
             residual = x
             if self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
@@ -417,7 +439,7 @@ class TransformerDecoderLayer(nn.Module):
             x = self.residual_connection(x, residual)
             if not self.normalize_before:
                 x = self.encoder_attn_layer_norm(x)
-            
+            '''
         residual = x
         if self.normalize_before:
             x = self.final_layer_norm(x)

@@ -506,7 +506,7 @@ class TransformerEncoder(FairseqEncoder):
         idx = 0
         print('self.is_fusion_top',self.is_fusion_top)
         if not self.is_fusion_top and imgs_list is not None:
-            print('len of imgs_list', len(imgs_list))
+            print('Enocder forward len of imgs_list', len(imgs_list))
             for img, img_mask in zip(imgs_list, img_masks_list):
                 print('img.shape',img.shape)
                 '''
@@ -534,7 +534,7 @@ class TransformerEncoder(FairseqEncoder):
             x = self.layer_norm(x)
 
         if self.is_fusion_top and imgs_list is not None:
-            print('len of imgs_list', len(imgs_list))
+            print('Encoder forward len of imgs_list', len(imgs_list))
             for img, img_mask in zip(imgs_list, img_masks_list):
                 print('img.shape',img.shape)
                 '''
