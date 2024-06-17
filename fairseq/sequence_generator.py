@@ -281,7 +281,7 @@ class SequenceGenerator(nn.Module):
 
             net_input['img_masks_list'] = img_masks
             net_input['imgs_list'] = imgs
-        sleep(10)
+        #sleep(10)
         encoder_outs1 = self.model.forward_encoder(net_input)
         encoder_outs2 = self.model.forward_encoder_for_synth(net_input)
         # placeholder of indices for bsz * beam_size to hold tokens and accumulative scores

@@ -6,8 +6,10 @@ task=multi30k-en2de
 image_feat=vit_base_patch16_384
 mask_data=mask0
 tag=$image_feat/$image_feat-$mask_data
-save_dir=checkpoints/$task/$tag
+#save_dir=checkpoints/$task/$tag
 #save_dir=checkpoints/$task/vit_base_patch14_reg4_dinov2_notFusionTop
+#save_dir=checkpoints/$task/$image_feat/QSRCIMG_KTGT_MultiHeadAttention2  # best till now
+save_dir=checkpoints/$task/$image_feat/QSRCIMG_KTGT_MultiHeadAttention3
 
 if [ ! -d $save_dir ]; then
         mkdir -p $save_dir
@@ -57,11 +59,12 @@ lr=0.005
 warmup=2000
 max_tokens=4096
 update_freq=1
-keep_last_epochs=10
+keep_last_epochs=40
+keep_best_epochs=30
 patience=10
 max_update=8000
 dropout=0.3
-
+#max_epoch=60
 arch=image_multimodal_transformer_SA_top
 SA_attention_dropout=0.1
 SA_image_dropout=0.1
@@ -104,7 +107,10 @@ cmd="fairseq-train data-bin/$data_dir
   --find-unused-parameters
   --share-all-embeddings
   --patience $patience
-  --keep-last-epochs $keep_last_epochs"
+  --keep-last-epochs $keep_last_epochs
+  --keep-best-checkpoints $keep_best_epochs"
+  
+#--max-epoch $max_epoch"
 
 if [ $fp16 -eq 1 ]; then
 cmd=${cmd}" --fp16 "

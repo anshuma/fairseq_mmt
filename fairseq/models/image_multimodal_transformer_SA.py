@@ -549,7 +549,7 @@ class TransformerEncoder(FairseqEncoder):
                 img = img.transpose(0, 1)
                 xs.append(self.fuse_img_feat(x, idx, img, img_mask, text_mask=src_tokens.ne(self.padding_idx)))
                 idx += 1
-            #x = self.f(xs, fun='sum')
+            x = self.f(xs, fun='sum')
         #x = self.f(xs, fun='sum')
 
 

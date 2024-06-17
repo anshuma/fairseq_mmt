@@ -79,21 +79,26 @@ def last_n_checkpoints(paths, n, update_based, upper_bound=None):
     if update_based:
         pt_regexp = re.compile(r"checkpoint_\d+_(\d+)\.pt")
     else:
-        pt_regexp = re.compile(r"checkpoint(\d+)\.pt")
+        #pt_regexp = re.compile(r"checkpoint(\d+)\.pt")
+        #pt_regexp = re.compile(r"best.best_loss_(\d+)\.pt")
+        pt_regexp = re.compile(r"checkpoint\.best_loss_(\d+\.\d+)\.pt")
     files = PathManager.ls(path)
 
     entries = []
     for f in files:
         m = pt_regexp.fullmatch(f)
         if m is not None:
-            sort_key = int(m.group(1))
+            sort_key = float(m.group(1))
             if upper_bound is None or sort_key <= upper_bound:
                 entries.append((sort_key, m.group(0)))
+    print('entries',entries)
     if len(entries) < n:
         raise Exception(
             "Found {} checkpoint files but need at least {}", len(entries), n
         )
     return [os.path.join(path, x[1]) for x in sorted(entries, reverse=True)[:n]]
+    #return [os.path.join(path, x[1]) for x in sorted(entries, reverse=False)[:n]]
+    #return [os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_6.79.pt'),os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_5.62.pt'),os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_4.50.pt'),os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_3.77.pt'),os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_3.37.pt'), os.path.join('checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention2/','checkpoint.best_loss_3.15.pt')]
 
 
 def main():

@@ -14,7 +14,7 @@ task=multi30k-en2de
 mask_data=$_mask
 image_feat=$_image_feat
 
-who=test	#test1, test2
+who=test1	#test1, test2
 random_image_translation=0 #1
 length_penalty=0.8
 
@@ -82,7 +82,7 @@ fi
 #image_feat_path=data/VisualBert_blip_large_DE_8June_finetune
 #image_feat_dim=768
 # data set
-ensemble=10
+ensemble=12
 batch_size=128
 beam=5
 src_lang=en
@@ -100,7 +100,8 @@ src_lang=en
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_8June_maxpool/
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_fusiontop
 #model_dir=checkpoints/multi30k-en2de/VisualBert_blip_large_DE_pretrained_TGTDE_TRANSDE_8June_validDE_de_finetune
-model_dir=checkpoints/multi30k-en2de/vit_base_patch16_384/vit_base_patch16_384-mask0/
+#model_dir=checkpoints/multi30k-en2de/vit_base_patch16_384/vit_base_patch16_384-mask0/
+model_dir=checkpoints/multi30k-en2de/vit_base_patch16_384/QSRCIMG_KTGT_MultiHeadAttention3/
 checkpoint=checkpoint_best.pt
 
 if [ -n "$ensemble" ]; then
@@ -109,8 +110,8 @@ if [ -n "$ensemble" ]; then
         fi
         checkpoint=last$ensemble.ensemble.pt
 fi
+#checkpoint=checkpoint.best_loss_3.77.pt
 output=$model_dir/translation_$who.log
-
 export CUDA_VISIBLE_DEVICES=$gpu
 
 
