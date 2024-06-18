@@ -95,7 +95,8 @@ def load_langpair_dataset(
         if tgt_dataset is not None:
             tgt_datasets.append(tgt_dataset)
         
-        synth_prefix = os.path.join("translated-data-bin/multi30k.en-de", "{}.{}-{}.".format(split_k, src, tgt))
+        #synth_prefix = os.path.join("translated-data-bin/multi30k.en-de", "{}.{}-{}.".format(split_k, src, tgt))
+        synth_prefix = os.path.join("translated-data-bin/","multi30k.en-{}/{}.{}-{}.".format(tgt,split_k, src, tgt))
         print('synth_prefix {} for split{}', synth_prefix, split)
         synth_tgt_dataset = data_utils.load_indexed_dataset(
             synth_prefix + tgt, synth_tgt_dict, dataset_impl
@@ -315,7 +316,7 @@ class ImageMMTTask(LegacyFairseqTask):
             os.path.join(paths[0], "dict.{}.txt".format(args.target_lang))
         )
         synth_tgt_dict = cls.load_dictionary(
-            os.path.join('translated-data-bin/multi30k.en-de', "dict.{}.txt".format(args.target_lang))
+            os.path.join('translated-data-bin/', "multi30k.en-{}/dict.{}.txt".format(args.target_lang, args.target_lang))
         )
         assert src_dict.pad() == tgt_dict.pad()
         assert src_dict.eos() == tgt_dict.eos()
